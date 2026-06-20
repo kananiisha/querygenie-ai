@@ -1,4 +1,5 @@
 # QueryGenie AI
+![CI](https://github.com/kananiisha/querygenie-ai/actions/workflows/ci.yml/badge.svg)
 
 Ask your business database questions in plain English — safely.
 
