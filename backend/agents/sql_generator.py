@@ -32,7 +32,12 @@ def _build_schema_context_text(schema_context: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def generate_sql(question: str, schema_context: list[dict]) -> str:
+def generate_sql(question: str, schema_context: list[dict], feedback: str | None = None) -> str:
+    """
+    Generates a SQL query for the given question. If `feedback` is provided
+    (e.g. from the Validator agent rejecting a previous attempt), it's
+    appended to the prompt so the model can correct itself.
+    """
     client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
 
     schema_text = _build_schema_context_text(schema_context)
@@ -41,6 +46,8 @@ def generate_sql(question: str, schema_context: list[dict]) -> str:
         f"Question: {question}\n\n"
         f"Write a single PostgreSQL SELECT query to answer this question."
     )
+    if feedback:
+        user_prompt += f"\n\n{feedback}"
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -52,7 +59,6 @@ def generate_sql(question: str, schema_context: list[dict]) -> str:
     )
 
     sql = response.choices[0].message.content.strip()
-    # Defensive cleanup in case the model wraps it in markdown anyway
     sql = sql.replace("```sql", "").replace("```", "").strip()
     return sql
 
