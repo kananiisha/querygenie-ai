@@ -1,6 +1,5 @@
 """
 FastAPI application — main entry point.
-Mokshi owns this file. Wire up the /query endpoint to Isha's agent pipeline.
 """
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -9,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.database import get_db, init_db, QueryLog
-from backend.auth import hash_password, verify_password, create_access_token, decode_token
+from backend.auth import hash_password, verify_password, create_access_token
 
 app = FastAPI(title="QueryGenie AI")
 
@@ -73,31 +72,29 @@ class QueryRequest(BaseModel):
 
 
 @app.post("/query")
-def query(
-    req: QueryRequest,
-    db: Session = Depends(get_db),
-    # token: dict = Depends(decode_token),  # uncomment to require auth
-):
+def query(req: QueryRequest, db: Session = Depends(get_db)):
     """
-    Main endpoint. Calls Isha's agent pipeline and returns the result.
-    TODO (Mokshi): uncomment the token dependency when auth is ready.
+    Main endpoint — runs the full agent pipeline and returns
+    question, SQL, raw results, and plain-English answer.
     """
     try:
-        # --- Call Isha's pipeline ---
-        from backend.schema_indexer.retrieve_schema import get_relevant_tables
-        from backend.agents.validator import generate_safe_sql
+        from backend.agents.pipeline import run_pipeline
+        output = run_pipeline(req.question)
 
-        schema_context = get_relevant_tables(req.question, top_k=2)
-        sql = generate_safe_sql(req.question, schema_context)
-
-        # --- Log to DB ---
-        log = QueryLog(question=req.question, generated_sql=sql, status="success")
+        # Log to DB
+        log = QueryLog(
+            question=req.question,
+            generated_sql=output["sql"],
+            status="success"
+        )
         db.add(log)
         db.commit()
 
         return {
-            "question": req.question,
-            "sql": sql,
+            "question": output["question"],
+            "sql": output["sql"],
+            "results": output["results"],
+            "answer": output["answer"],
             "status": "success",
         }
 
