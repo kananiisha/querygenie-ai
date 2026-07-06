@@ -9,3 +9,5 @@ sentence-transformers
 groq
 pytest
 httpx
+python-jose[cryptography]
+passlib[bcrypt]
