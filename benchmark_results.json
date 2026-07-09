@@ -1,0 +1,201 @@
+{
+  "total": 20,
+  "passed": 19,
+  "failed": 0,
+  "errors": 1,
+  "accuracy_percent": 95.0,
+  "category_breakdown": {
+    "count": {
+      "pass": 11,
+      "total": 11
+    },
+    "filter": {
+      "pass": 7,
+      "total": 8
+    },
+    "aggregation": {
+      "pass": 1,
+      "total": 1
+    }
+  },
+  "results": [
+    {
+      "id": 1,
+      "question": "How many customers are there?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(customer_id) FROM customers",
+      "answer": "There are 10 customers in total. This number is based on the count of unique customer identifiers in the database. The database contains information on exactly 10 customers, with no more and no less.",
+      "time_seconds": 14.52
+    },
+    {
+      "id": 2,
+      "question": "Which customers are from Mumbai?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT customer_id, name, email, signup_date FROM customers WHERE city = 'Mumbai'",
+      "answer": "We found one customer from Mumbai: Rohan Mehta, who signed up on February 3, 2025, and can be reached at rohan.mehta@mail.com. Their customer ID is 2. This is the only customer in our records from Mumbai.",
+      "time_seconds": 2.67
+    },
+    {
+      "id": 3,
+      "question": "Which customers are from Delhi?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT customer_id, name, email, signup_date FROM customers WHERE city = 'Delhi'",
+      "answer": "We have two customers from Delhi: Arjun Verma and Karan Singh. Arjun Verma signed up on March 5, 2025, and Karan Singh signed up on May 1, 2025. You can reach them at arjun.verma@mail.com and karan.singh@mail.com, respectively. Their customer IDs are 4 and 8.",
+      "time_seconds": 2.97
+    },
+    {
+      "id": 4,
+      "question": "How many orders were delivered?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(order_id) FROM orders WHERE status = 'delivered'",
+      "answer": "There were 10 orders that were delivered. This is based on the total count of orders with a status of 'delivered' in our records.",
+      "time_seconds": 2.87
+    },
+    {
+      "id": 5,
+      "question": "How many orders were cancelled?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(order_id) FROM orders WHERE status = 'cancelled'",
+      "answer": "There was 1 order that was cancelled. This is based on the total count of orders with a status of 'cancelled' in our records.",
+      "time_seconds": 2.34
+    },
+    {
+      "id": 6,
+      "question": "What is the total revenue from successful payments?",
+      "category": "aggregation",
+      "status": "pass",
+      "sql": "SELECT SUM(amount) FROM payments WHERE status = 'success'",
+      "answer": "The total revenue from successful payments is $29,525. This amount comes from payments that were processed successfully. The data shows that this is the combined total of all successful payments. Overall, successful payments have generated a significant revenue of $29,525.",
+      "time_seconds": 2.47
+    },
+    {
+      "id": 7,
+      "question": "How many products are in the Electronics category?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(product_id) FROM products WHERE category = 'Electronics'",
+      "answer": "There are 3 products in the Electronics category. This means that out of all the products available, 3 of them fall under the Electronics category. The database confirmed this count, showing a total of 3 products that match this specific category.",
+      "time_seconds": 2.77
+    },
+    {
+      "id": 8,
+      "question": "What is the most expensive product?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT name, price FROM products ORDER BY price DESC LIMIT 1",
+      "answer": "The most expensive product is the Smartwatch, which costs $2999. This is the highest priced item among all the products. There is one product at this price point, and it is the Smartwatch.",
+      "time_seconds": 2.46
+    },
+    {
+      "id": 9,
+      "question": "How many customers are from Bangalore?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(customer_id) FROM customers WHERE city = 'Bangalore'",
+      "answer": "There are 2 customers from Bangalore. This is based on the information available in our database, which shows that exactly 2 customer records have Bangalore listed as their city.",
+      "time_seconds": 2.36
+    },
+    {
+      "id": 10,
+      "question": "How many orders have status placed?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(order_id) FROM orders WHERE status = 'placed'",
+      "answer": "There are 2 orders that have a status of \"placed\". This means that two orders have been successfully placed. The database confirms that exactly two orders are in this state.",
+      "time_seconds": 2.25
+    },
+    {
+      "id": 11,
+      "question": "Which payment methods are used?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT DISTINCT payment_method FROM payments",
+      "answer": "The payment methods used are UPI, card, net banking, and cash on delivery (COD). These four methods are utilized for making payments. The data shows that all these options are available and have been used.",
+      "time_seconds": 2.56
+    },
+    {
+      "id": 12,
+      "question": "How many payments failed?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(payment_id) FROM payments WHERE status = 'failed'",
+      "answer": "There was 1 payment that failed. This is based on the total count of payments with a status of 'failed' in our records.",
+      "time_seconds": 2.18
+    },
+    {
+      "id": 13,
+      "question": "What is the cheapest product?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT name, price FROM products ORDER BY price ASC LIMIT 1",
+      "answer": "The cheapest product is the \"Notebook Set\", which costs $199.00. This is the lowest priced item among all the products. There are no other products cheaper than this one, according to our data.",
+      "time_seconds": 2.23
+    },
+    {
+      "id": 14,
+      "question": "How many products are there in total?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(product_id) FROM products",
+      "answer": "There are a total of 12 products. This is the overall number of products available, as determined by counting each unique product identifier. The database contains information on exactly 12 products.",
+      "time_seconds": 2.35
+    },
+    {
+      "id": 15,
+      "question": "Which customers signed up in 2025?",
+      "category": "filter",
+      "status": "error",
+      "error": "(sqlite3.OperationalError) near \"FROM\": syntax error\n[SQL: SELECT customer_id, name, email, city FROM customers WHERE EXTRACT(YEAR FROM signup_date) = 2025]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    },
+    {
+      "id": 16,
+      "question": "How many orders were shipped?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(order_id) FROM orders WHERE status = 'shipped'",
+      "answer": "There were 2 orders that were shipped. This is based on the total count of orders with a status of 'shipped' in our records.",
+      "time_seconds": 4.41
+    },
+    {
+      "id": 17,
+      "question": "What is the total number of orders?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(order_id) FROM orders",
+      "answer": "There are a total of 15 orders. This is the overall number of orders found in the database. The total count includes all orders, with no specific details about each individual order provided.",
+      "time_seconds": 6.88
+    },
+    {
+      "id": 18,
+      "question": "Which customer is from Chennai?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT name FROM customers WHERE city = 'Chennai'",
+      "answer": "The customer from Chennai is Meera Iyer. This is the only customer in our records who is listed as being from Chennai.",
+      "time_seconds": 6.33
+    },
+    {
+      "id": 19,
+      "question": "How many payments were successful?",
+      "category": "count",
+      "status": "pass",
+      "sql": "SELECT COUNT(payment_id) FROM payments WHERE status = 'success'",
+      "answer": "There were 13 successful payments. This is based on the total count of payments that have a status of \"success\". All of these payments were completed without any issues.",
+      "time_seconds": 6.76
+    },
+    {
+      "id": 20,
+      "question": "What are the product categories?",
+      "category": "filter",
+      "status": "pass",
+      "sql": "SELECT DISTINCT category FROM products",
+      "answer": "The product categories are Electronics, Clothing, Home, and Books. These four categories are the distinct types of products available. Each category represents a unique group of products, such as electronics devices or clothing items. Overall, there are 4 different product categories in total.",
+      "time_seconds": 6.76
+    }
+  ]
+}
