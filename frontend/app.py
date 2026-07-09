@@ -1,5 +1,5 @@
 """
-QueryGenie AI — Upgraded Streamlit Frontend
+QueryGenie AI — Clean Professional Light Theme
 """
 
 import streamlit as st
@@ -15,220 +15,171 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ─── Custom CSS ──────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Main background */
-    .stApp { background-color: #0f1117; }
+    #MainMenu, footer { visibility: hidden; }
 
-    /* Hide default header */
-    #MainMenu, header, footer { visibility: hidden; }
+    .stApp { background-color: #f8fafc; }
 
-    /* Hero section */
-    .hero-container {
-        background: linear-gradient(135deg, #1a1f2e 0%, #16213e 50%, #0f3460 100%);
+    .hero {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         border-radius: 16px;
-        padding: 40px;
-        margin-bottom: 24px;
-        border: 1px solid #2d3748;
+        padding: 36px 40px;
+        margin-bottom: 28px;
+        color: white;
     }
-    .hero-title {
-        font-size: 2.8rem;
+    .hero h1 {
+        font-size: 2.4rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
+        margin: 0 0 6px 0;
+        color: white;
     }
-    .hero-subtitle {
-        color: #94a3b8;
-        font-size: 1.1rem;
-        margin-top: 8px;
+    .hero p {
+        font-size: 1.05rem;
+        opacity: 0.9;
+        margin: 0;
+        color: white;
     }
 
-    /* Answer card */
     .answer-card {
-        background: linear-gradient(135deg, #1e293b, #1a2744);
-        border: 1px solid #6366f1;
+        background: white;
+        border-left: 4px solid #6366f1;
         border-radius: 12px;
         padding: 24px;
         margin: 16px 0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
     .answer-label {
         color: #6366f1;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 8px;
-    }
-    .answer-text {
-        color: #e2e8f0;
-        font-size: 1.1rem;
-        line-height: 1.7;
-    }
-
-    /* SQL card */
-    .sql-card {
-        background: #0d1117;
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 20px;
-        margin: 12px 0;
-    }
-    .sql-label {
-        color: #58a6ff;
-        font-size: 0.8rem;
-        font-weight: 600;
-        letter-spacing: 1px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
         margin-bottom: 10px;
     }
-
-    /* Metric cards */
-    .metric-row {
-        display: flex;
-        gap: 16px;
-        margin: 16px 0;
+    .answer-text {
+        color: #1e293b;
+        font-size: 1.05rem;
+        line-height: 1.75;
     }
+
     .metric-card {
-        background: #1e293b;
-        border: 1px solid #2d3748;
-        border-radius: 10px;
-        padding: 16px 24px;
-        flex: 1;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
         text-align: center;
-    }
-    .metric-value {
-        color: #6366f1;
-        font-size: 1.8rem;
-        font-weight: 700;
-    }
-    .metric-label {
-        color: #64748b;
-        font-size: 0.8rem;
-        margin-top: 4px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     }
 
-    /* Input styling */
     .stTextInput > div > div > input {
-        background-color: #1e293b !important;
-        border: 1px solid #374151 !important;
+        border: 2px solid #e2e8f0 !important;
         border-radius: 10px !important;
-        color: #e2e8f0 !important;
         font-size: 1rem !important;
-        padding: 14px !important;
+        padding: 12px !important;
+        background: white !important;
+        color: #1e293b !important;
     }
     .stTextInput > div > div > input:focus {
         border-color: #6366f1 !important;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
     }
 
-    /* Button */
     .stButton > button {
         background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
         color: white !important;
         border: none !important;
         border-radius: 10px !important;
-        padding: 14px 28px !important;
         font-weight: 600 !important;
         font-size: 1rem !important;
+        padding: 12px !important;
         width: 100% !important;
-        transition: opacity 0.2s !important;
-    }
-    .stButton > button:hover {
-        opacity: 0.9 !important;
     }
 
-    /* History item */
-    .history-item {
-        background: #1e293b;
-        border: 1px solid #2d3748;
-        border-radius: 10px;
-        padding: 16px;
-        margin: 8px 0;
-        cursor: pointer;
-    }
-    .history-question {
-        color: #e2e8f0;
-        font-weight: 500;
-    }
-    .history-meta {
-        color: #64748b;
-        font-size: 0.8rem;
-        margin-top: 4px;
-    }
-
-    /* Sidebar */
-    .css-1d391kg, [data-testid="stSidebar"] {
-        background-color: #0d1117 !important;
-        border-right: 1px solid #21262d !important;
-    }
-
-    /* Sample question pill */
-    .sample-pill {
-        background: #1e293b;
-        border: 1px solid #374151;
-        border-radius: 20px;
-        padding: 6px 14px;
-        color: #94a3b8;
-        font-size: 0.85rem;
+    .pill {
         display: inline-block;
-        margin: 4px 2px;
-        cursor: pointer;
+        background: #ede9fe;
+        color: #6366f1;
+        border-radius: 20px;
+        padding: 5px 14px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        margin: 3px;
     }
 
-    /* Divider */
-    hr { border-color: #21262d !important; }
+    .history-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin: 8px 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
 
-    /* Dataframe */
-    .dataframe { background: #1e293b !important; }
+    [data-testid="stSidebar"] {
+        background: white !important;
+        border-right: 1px solid #e2e8f0 !important;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        color: #475569;
+        font-size: 0.9rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .step-num {
+        background: #ede9fe;
+        color: #6366f1;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Hero Section ─────────────────────────────────────────────────────────────
+# ─── Hero ─────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div class="hero-container">
-    <p class="hero-title">🔍 QueryGenie AI</p>
-    <p class="hero-subtitle">Ask your business database anything in plain English — no SQL knowledge needed.</p>
+<div class="hero">
+    <h1>🔍 QueryGenie AI</h1>
+    <p>Ask your business database anything in plain English — no SQL knowledge needed.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ─── Query Input ─────────────────────────────────────────────────────────────
+# ─── Input ────────────────────────────────────────────────────────────────────
 col1, col2 = st.columns([5, 1])
 with col1:
-    question = st.text_input(
-        "question",
-        placeholder="e.g. Which customers are from Mumbai? | What is total revenue?",
-        label_visibility="collapsed",
-        key="main_question"
-    )
+    question = st.text_input("q", placeholder="e.g. Which customers are from Mumbai?", label_visibility="collapsed")
 with col2:
-    ask_button = st.button("⚡ Ask", type="primary", use_container_width=True)
+    ask = st.button("⚡ Ask", type="primary", use_container_width=True)
 
-# Sample question pills
 st.markdown("""
-<div style="margin: -8px 0 16px 0;">
-    <span style="color: #64748b; font-size: 0.8rem;">Try: </span>
-    <span class="sample-pill">Which customers are from Mumbai?</span>
-    <span class="sample-pill">Total revenue from successful payments?</span>
-    <span class="sample-pill">How many orders were delivered?</span>
+<div style="margin: 4px 0 20px 0;">
+<span style="color:#94a3b8; font-size:0.82rem;">Try: </span>
+<span class="pill">Which customers are from Mumbai?</span>
+<span class="pill">Total revenue from payments?</span>
+<span class="pill">How many orders delivered?</span>
+<span class="pill">Top selling category?</span>
 </div>
 """, unsafe_allow_html=True)
 
-# ─── Run Pipeline ─────────────────────────────────────────────────────────────
-if ask_button and question:
-    with st.spinner("🤖 AI agents working..."):
+# ─── Pipeline ─────────────────────────────────────────────────────────────────
+if ask and question:
+    with st.spinner("🤖 Running AI agents..."):
         try:
-            response = requests.post(
-                f"{BACKEND_URL}/query",
-                json={"question": question},
-                timeout=60,
-            )
-            data = response.json()
+            res = requests.post(f"{BACKEND_URL}/query", json={"question": question}, timeout=60)
+            data = res.json()
 
-            if response.status_code == 200:
-                # Answer Card
+            if res.status_code == 200:
+                # Answer
                 st.markdown(f"""
                 <div class="answer-card">
                     <div class="answer-label">💬 Answer</div>
@@ -236,103 +187,101 @@ if ask_button and question:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Metrics row
-                result_count = len(data.get("results", []))
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("📊 Rows Returned", result_count)
-                with col2:
-                    st.metric("🤖 Agents Used", "4")
-                with col3:
+                # Metrics
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("📊 Rows Returned", len(data.get("results", [])))
+                with c2:
+                    st.metric("🤖 Agents Used", 4)
+                with c3:
                     st.metric("✅ Status", "Success")
 
-                # SQL expander
-                with st.expander("🔍 View Generated SQL Query"):
+                # SQL
+                with st.expander("🔍 View Generated SQL"):
                     st.code(data["sql"], language="sql")
 
                 # Results table
                 if data.get("results"):
-                    with st.expander(f"📋 Raw Results — {result_count} row(s)"):
-                        df = pd.DataFrame(data["results"])
-                        st.dataframe(
-                            df,
-                            use_container_width=True,
-                            hide_index=True,
-                        )
+                    with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)"):
+                        st.dataframe(pd.DataFrame(data["results"]), use_container_width=True, hide_index=True)
+
             else:
                 st.error(f"❌ {data.get('detail', 'Something went wrong.')}")
 
         except requests.exceptions.ConnectionError:
-            st.error("❌ Cannot connect to backend. Make sure the server is running:\n`python -m uvicorn backend.main:app --reload`")
+            st.error("❌ Backend not running. Start it with: `python -m uvicorn backend.main:app --reload`")
         except requests.exceptions.Timeout:
-            st.error("⏱️ Request timed out — the pipeline is taking longer than expected. Try again.")
+            st.error("⏱️ Timed out — please try again.")
         except Exception as e:
-            st.error(f"❌ Error: {e}")
+            st.error(f"❌ {e}")
 
-elif ask_button and not question:
+elif ask:
     st.warning("⚠️ Please type a question first.")
 
 st.divider()
 
-# ─── Query History ─────────────────────────────────────────────────────────────
-col1, col2 = st.columns([3, 1])
-with col1:
+# ─── History ──────────────────────────────────────────────────────────────────
+hc1, hc2 = st.columns([4, 1])
+with hc1:
     st.subheader("📜 Recent Queries")
-with col2:
-    refresh = st.button("🔄 Refresh", use_container_width=True)
-
-if refresh:
-    try:
-        hist = requests.get(f"{BACKEND_URL}/query/history", timeout=10).json()
-        if hist:
-            for item in hist:
-                status_icon = "✅" if item["status"] == "success" else "❌"
-                with st.expander(f"{status_icon} {item['question']}"):
-                    if item["sql"]:
-                        st.code(item["sql"], language="sql")
-                    st.caption(f"🕐 {item['created_at']}")
-        else:
-            st.info("No queries yet — ask something above!")
-    except Exception as e:
-        st.error(f"Could not load history: {e}")
+with hc2:
+    if st.button("🔄 Refresh", use_container_width=True):
+        try:
+            hist = requests.get(f"{BACKEND_URL}/query/history", timeout=10).json()
+            if hist:
+                for item in hist:
+                    icon = "✅" if item["status"] == "success" else "❌"
+                    with st.expander(f"{icon} {item['question']}"):
+                        if item["sql"]:
+                            st.code(item["sql"], language="sql")
+                        st.caption(f"🕐 {item['created_at']}")
+            else:
+                st.info("No queries yet!")
+        except Exception as e:
+            st.error(str(e))
 
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🔍 QueryGenie AI")
-    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("## 🔍 QueryGenie AI")
+    st.markdown("---")
 
-    st.markdown("#### 💡 Sample Questions")
-    samples = [
+    st.markdown("### 💡 Sample Questions")
+    for q in [
         "Which customers are from Mumbai?",
-        "What is total revenue from successful payments?",
+        "Total revenue from successful payments?",
         "How many orders were delivered?",
-        "Which product category has the most orders?",
+        "Which product category has most orders?",
         "Show all customers from Bangalore",
         "How many orders were cancelled?",
+    ]:
+        st.markdown(f"▸ {q}")
+
+    st.markdown("---")
+    st.markdown("### 🏗️ How it works")
+    steps = [
+        ("1", "Schema Retriever — finds relevant tables"),
+        ("2", "SQL Generator — writes the query"),
+        ("3", "Validator — checks it's safe"),
+        ("4", "Executor — runs against DB"),
+        ("5", "Explainer — plain English answer"),
     ]
-    for s in samples:
-        st.markdown(f"▸ *{s}*")
+    for num, label in steps:
+        st.markdown(f"""
+        <div class="step-item">
+            <div class="step-num">{num}</div>
+            <span>{label}</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-    st.markdown("#### ⚙️ Tech Stack")
+    st.markdown("---")
+    st.markdown("### ⚙️ Tech Stack")
     st.markdown("""
-    | Layer | Tech |
-    |---|---|
-    | LLM | Groq LLaMA 3.3 |
-    | Agents | LangChain |
-    | Vector DB | Qdrant |
-    | Backend | FastAPI |
-    | Database | SQLite |
-    | UI | Streamlit |
-    """)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("#### 🏗️ Agent Pipeline")
-    st.markdown("""
-    1. 🔎 **Schema Retriever**
-    2. ✍️ **SQL Generator**
-    3. 🛡️ **Validator**
-    4. ⚡ **Executor**
-    5. 💬 **Explainer**
+| | |
+|---|---|
+| LLM | Groq LLaMA 3.3 |
+| Agents | LangChain |
+| Vector DB | Qdrant |
+| Backend | FastAPI |
+| DB | SQLite |
+| UI | Streamlit |
     """)
