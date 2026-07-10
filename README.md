@@ -90,15 +90,6 @@ Evaluated on a **20-question golden test set**:
 
 ---
 
-## 👥 Team
-
-| Member | Role |
-|---|---|
-| **Isha Kanani** | AI Module — schema embeddings, agent pipeline, accuracy benchmark |
-| **Mokshi** | Backend (FastAPI, auth, DB) + Frontend (Streamlit UI) |
-
----
-
 ## 🚀 Setup & Run
 
 ```bash
