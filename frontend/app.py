@@ -175,7 +175,7 @@ st.markdown("""
 if ask and question:
     with st.spinner("🤖 Running AI agents..."):
         try:
-            res = requests.post(f"{BACKEND_URL}/query", json={"question": question}, timeout=60)
+            res = requests.post(f"{BACKEND_URL}/query", json={"question": question}, timeout=120)
             data = res.json()
 
             if res.status_code == 200:
