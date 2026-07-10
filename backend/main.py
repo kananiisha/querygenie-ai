@@ -24,7 +24,13 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
-
+    # Auto-index schema into Qdrant on startup
+    try:
+        from backend.schema_indexer.index_schema import build_schema_index
+        build_schema_index()
+        print("Schema indexed successfully on startup.")
+    except Exception as e:
+        print(f"Schema indexing failed on startup: {e}")
 
 @app.get("/health")
 def health_check():
