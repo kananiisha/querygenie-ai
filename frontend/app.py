@@ -5,8 +5,8 @@ QueryGenie AI — Clean Professional Light Theme
 import streamlit as st
 import requests
 import pandas as pd
-
-BACKEND_URL = "http://localhost:8000"
+import os
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="QueryGenie AI",

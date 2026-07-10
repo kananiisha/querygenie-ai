@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, text
 
-DATABASE_URL = "sqlite:///./querygenie_dev.db"
+import os
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./querygenie_dev.db")
 engine = create_engine(DATABASE_URL)
 
 with engine.connect() as conn:
