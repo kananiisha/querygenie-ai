@@ -1,13 +1,17 @@
 """
 Given a natural-language question, finds the most relevant table(s)
-from the indexed schema. This is what the Schema Retriever Agent
-calls before the SQL Generator Agent writes a query.
+from the indexed schema using Qdrant.
+Supports both local and Qdrant Cloud mode.
 """
 
+import os
+from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 
-from .index_schema import COLLECTION_NAME, QDRANT_PATH, EMBEDDING_MODEL
+from .index_schema import COLLECTION_NAME, EMBEDDING_MODEL, QDRANT_PATH
+
+load_dotenv()
 
 _model = None
 _client = None
@@ -23,15 +27,16 @@ def _get_model():
 def _get_client():
     global _client
     if _client is None:
-        _client = QdrantClient(path=QDRANT_PATH)
+        qdrant_url = os.environ.get("QDRANT_URL", "")
+        qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
+        if qdrant_url and qdrant_api_key:
+            _client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        else:
+            _client = QdrantClient(path=QDRANT_PATH)
     return _client
 
 
 def get_relevant_tables(question: str, top_k: int = 2) -> list[dict]:
-    """
-    Returns the top_k most relevant tables (with columns + description)
-    for a given natural-language question.
-    """
     model = _get_model()
     client = _get_client()
 
@@ -54,7 +59,6 @@ def get_relevant_tables(question: str, top_k: int = 2) -> list[dict]:
 
 
 if __name__ == "__main__":
-    # Quick manual test
     test_question = "Which customers are from Mumbai?"
     matches = get_relevant_tables(test_question)
     for m in matches:
