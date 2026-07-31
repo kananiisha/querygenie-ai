@@ -19,6 +19,8 @@ Rules:
 - Only write SELECT queries. Never write INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Only use the tables and columns provided in the schema context below.
 - Return ONLY the raw SQL query. No explanation, no markdown, no backticks.
+- When the question asks about customers, always include customer name and email in the results.
+- When joining tables, always select meaningful columns like names, not just IDs.
 """
 
 
