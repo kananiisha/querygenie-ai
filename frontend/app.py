@@ -221,24 +221,21 @@ elif ask:
 st.divider()
 
 # ─── History ──────────────────────────────────────────────────────────────────
-hc1, hc2 = st.columns([4, 1])
-with hc1:
-    st.subheader("📜 Recent Queries")
-with hc2:
-    if st.button("🔄 Refresh", use_container_width=True):
-        try:
-            hist = requests.get(f"{BACKEND_URL}/query/history", timeout=10).json()
-            if hist:
-                for item in hist:
-                    icon = "✅" if item["status"] == "success" else "❌"
-                    with st.expander(f"{icon} {item['question']}"):
-                        if item["sql"]:
-                            st.code(item["sql"], language="sql")
-                        st.caption(f"🕐 {item['created_at']}")
-            else:
-                st.info("No queries yet!")
-        except Exception as e:
-            st.error(str(e))
+st.subheader("📜 Recent Queries")
+if st.button("🔄 Refresh"):
+    try:
+        hist = requests.get(f"{BACKEND_URL}/query/history", timeout=10).json()
+        if hist:
+            for item in hist:
+                icon = "✅" if item["status"] == "success" else "❌"
+                with st.expander(f"{icon} {item['question']}"):
+                    if item["sql"]:
+                        st.code(item["sql"], language="sql")
+                    st.caption(f"🕐 {item['created_at']}")
+        else:
+            st.info("No queries yet!")
+    except Exception as e:
+        st.error(str(e))
 
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
