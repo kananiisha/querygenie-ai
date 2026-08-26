@@ -1,5 +1,5 @@
 """
-QueryGenie AI — Upgraded Frontend with File Upload + Demo Mode
+QueryGenie AI — Frontend with Upload, Recommendations, Caching
 """
 
 import streamlit as st
@@ -20,7 +20,6 @@ st.markdown("""
 <style>
     #MainMenu, footer { visibility: hidden; }
     .stApp { background-color: #f8fafc; }
-
     .hero {
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         border-radius: 16px;
@@ -30,18 +29,6 @@ st.markdown("""
     }
     .hero h1 { font-size: 2.4rem; font-weight: 800; margin: 0 0 6px 0; color: white; }
     .hero p { font-size: 1.05rem; opacity: 0.9; margin: 0; color: white; }
-
-    .mode-card {
-        background: white;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .mode-card.active { border-color: #6366f1; background: #f5f3ff; }
-
     .answer-card {
         background: white;
         border-left: 4px solid #6366f1;
@@ -52,16 +39,6 @@ st.markdown("""
     }
     .answer-label { color: #6366f1; font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
     .answer-text { color: #1e293b; font-size: 1.05rem; line-height: 1.75; }
-
-    .upload-zone {
-        background: #f8fafc;
-        border: 2px dashed #c7d2fe;
-        border-radius: 12px;
-        padding: 32px;
-        text-align: center;
-        margin: 16px 0;
-    }
-
     .schema-pill {
         display: inline-block;
         background: #ede9fe;
@@ -72,7 +49,6 @@ st.markdown("""
         font-weight: 500;
         margin: 2px;
     }
-
     .stTextInput > div > div > input {
         border: 2px solid #e2e8f0 !important;
         border-radius: 10px !important;
@@ -85,7 +61,6 @@ st.markdown("""
         border-color: #6366f1 !important;
         box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
     }
-
     .stButton > button {
         background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
         color: white !important;
@@ -96,7 +71,6 @@ st.markdown("""
         padding: 12px !important;
         width: 100% !important;
     }
-
     .pill {
         display: inline-block;
         background: #ede9fe;
@@ -107,15 +81,13 @@ st.markdown("""
         font-weight: 500;
         margin: 3px;
     }
-
     [data-testid="stSidebar"] { background: white !important; border-right: 1px solid #e2e8f0 !important; }
-
     .step-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: #475569; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; }
     .step-num { background: #ede9fe; color: #6366f1; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Session State ────────────────────────────────────────────────────────────
+# ─── Session State ─────────────────────────────────────────────────────────────
 if "mode" not in st.session_state:
     st.session_state.mode = "demo"
 if "uploaded_table" not in st.session_state:
@@ -124,8 +96,12 @@ if "uploaded_columns" not in st.session_state:
     st.session_state.uploaded_columns = []
 if "uploaded_filename" not in st.session_state:
     st.session_state.uploaded_filename = None
+if "recommendations" not in st.session_state:
+    st.session_state.recommendations = []
+if "selected_question" not in st.session_state:
+    st.session_state.selected_question = ""
 
-# ─── Hero ─────────────────────────────────────────────────────────────────────
+# ─── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero">
     <h1>🔍 QueryGenie AI</h1>
@@ -133,12 +109,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ─── Mode Selector ────────────────────────────────────────────────────────────
+# ─── Mode Selector ─────────────────────────────────────────────────────────────
 st.markdown("#### Choose your data source:")
 col_demo, col_upload = st.columns(2)
 with col_demo:
     if st.button("🏪 Demo Dataset (E-Commerce)", use_container_width=True):
         st.session_state.mode = "demo"
+        st.session_state.recommendations = []
 with col_upload:
     if st.button("📁 Upload Your Own File (CSV/Excel)", use_container_width=True):
         st.session_state.mode = "upload"
@@ -146,10 +123,17 @@ with col_upload:
 st.markdown(f"**Current mode:** {'🏪 Demo Dataset' if st.session_state.mode == 'demo' else '📁 Upload Mode'}")
 st.divider()
 
-# ─── Upload Mode ──────────────────────────────────────────────────────────────
+# ─── Upload Mode ───────────────────────────────────────────────────────────────
 if st.session_state.mode == "upload":
     st.markdown("### 📁 Upload Your Dataset")
-    st.markdown("Supports CSV and Excel files up to 50MB.")
+
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1:
+        st.info("📄 **CSV files** — any size up to 500MB")
+    with col_info2:
+        st.info("📊 **Excel files** — .xlsx or .xls")
+    with col_info3:
+        st.info("⚡ **Large files** — chunked, 1M+ rows supported")
 
     uploaded_file = st.file_uploader(
         "Choose a file",
@@ -158,34 +142,85 @@ if st.session_state.mode == "upload":
     )
 
     if uploaded_file:
-        if st.button("⚡ Process File", type="primary"):
+        size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
+        st.markdown(f"**File:** `{uploaded_file.name}` — {size_mb:.1f}MB")
+        if size_mb > 10:
+            st.warning(f"⚠️ Large file ({size_mb:.0f}MB) — processing may take a minute.")
+
+        if st.button("⚡ Process & Index File", type="primary"):
             with st.spinner(f"Processing {uploaded_file.name}..."):
                 try:
                     res = requests.post(
                         f"{BACKEND_URL}/upload",
                         files={"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)},
-                        timeout=120,
+                        timeout=300,
                     )
                     data = res.json()
                     if res.status_code == 200:
                         st.session_state.uploaded_table = data["table_name"]
                         st.session_state.uploaded_columns = data["columns"]
                         st.session_state.uploaded_filename = data["filename"]
-                        st.success(f"✅ **{data['filename']}** uploaded successfully! {data['rows']:,} rows, {len(data['columns'])} columns.")
-                        st.markdown("**Columns found:**")
+                        st.success(f"✅ **{data['filename']}** processed! {data['rows']:,} rows, {len(data['columns'])} columns.")
+                        st.markdown("**Columns detected:**")
                         cols_html = " ".join([f'<span class="schema-pill">{c}</span>' for c in data["columns"]])
                         st.markdown(cols_html, unsafe_allow_html=True)
+
+                        # ── AI Query Recommendations ──────────────────────
+                        st.markdown("### 💡 AI-Suggested Questions for Your Dataset")
+                        with st.spinner("Generating smart questions..."):
+                            try:
+                                rec_res = requests.post(
+                                    f"{BACKEND_URL}/recommendations",
+                                    json={"question": "suggest questions", "table_hint": data["table_name"]},
+                                    timeout=30,
+                                )
+                                if rec_res.status_code == 200:
+                                    st.session_state.recommendations = rec_res.json().get("recommendations", [])
+                            except Exception:
+                                pass
                     else:
                         st.error(f"❌ {data.get('detail', 'Upload failed.')}")
+                except requests.exceptions.Timeout:
+                    st.error("⏱️ Timed out — file may be too large. Try a smaller file first.")
                 except Exception as e:
                     st.error(f"❌ {e}")
+
+    # Show AI recommendations
+    if st.session_state.recommendations:
+        st.markdown("### 💡 Suggested Questions")
+        cols = st.columns(2)
+        for i, rec in enumerate(st.session_state.recommendations):
+            with cols[i % 2]:
+                if st.button(f"▸ {rec}", key=f"rec_{i}", use_container_width=True):
+                    st.session_state.selected_question = rec
+
+    # Show previously uploaded tables
+    try:
+        tables_res = requests.get(f"{BACKEND_URL}/tables", timeout=5)
+        if tables_res.status_code == 200:
+            tables = tables_res.json().get("tables", [])
+            if tables:
+                st.markdown("### 📂 Previously Uploaded Datasets")
+                for t in tables:
+                    col_t1, col_t2 = st.columns([3, 1])
+                    with col_t1:
+                        display_name = t["table"].replace("uploaded_", "").replace("_", " ").title()
+                        st.markdown(f"**{display_name}** — {t['rows']:,} rows, {len(t['columns'])} columns")
+                    with col_t2:
+                        if st.button("Use this", key=f"use_{t['table']}"):
+                            st.session_state.uploaded_table = t["table"]
+                            st.session_state.uploaded_columns = t["columns"]
+                            st.session_state.uploaded_filename = display_name
+                            st.success(f"Switched to {display_name}")
+    except Exception:
+        pass
 
     if st.session_state.uploaded_filename:
         st.info(f"📊 Active dataset: **{st.session_state.uploaded_filename}** — {len(st.session_state.uploaded_columns)} columns")
 
     st.divider()
 
-# ─── Query Input ──────────────────────────────────────────────────────────────
+# ─── Query Input ───────────────────────────────────────────────────────────────
 if st.session_state.mode == "demo":
     st.markdown("""
     <div style="margin-bottom: 8px;">
@@ -199,14 +234,17 @@ if st.session_state.mode == "demo":
 col1, col2 = st.columns([5, 1])
 with col1:
     placeholder = "Ask about your uploaded data..." if st.session_state.mode == "upload" else "e.g. Which customers are from Mumbai?"
-    question = st.text_input("q", placeholder=placeholder, label_visibility="collapsed")
+    default_q = st.session_state.get("selected_question", "")
+    question = st.text_input("q", value=default_q, placeholder=placeholder, label_visibility="collapsed")
+    if default_q:
+        st.session_state.selected_question = ""
 with col2:
     ask = st.button("⚡ Ask", type="primary", use_container_width=True)
 
-# ─── Pipeline ─────────────────────────────────────────────────────────────────
+# ─── Pipeline ──────────────────────────────────────────────────────────────────
 if ask and question:
     if st.session_state.mode == "upload" and not st.session_state.uploaded_table:
-        st.warning("⚠️ Please upload a file first before asking questions.")
+        st.warning("⚠️ Please upload a file first.")
     else:
         with st.spinner("🤖 Running AI agents..."):
             try:
@@ -218,9 +256,10 @@ if ask and question:
                 data = res.json()
 
                 if res.status_code == 200:
+                    cached = data.get("cached", False)
                     st.markdown(f"""
                     <div class="answer-card">
-                        <div class="answer-label">💬 Answer</div>
+                        <div class="answer-label">💬 Answer {' ⚡ (cached)' if cached else ''}</div>
                         <div class="answer-text">{data['answer']}</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -231,7 +270,7 @@ if ask and question:
                     with c2:
                         st.metric("🤖 Agents Used", 5)
                     with c3:
-                        st.metric("✅ Status", "Success")
+                        st.metric("✅ Status", "Cached ⚡" if cached else "Success")
 
                     with st.expander("🔍 View Generated SQL"):
                         st.code(data["sql"], language="sql")
@@ -240,15 +279,8 @@ if ask and question:
                         with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)"):
                             df = pd.DataFrame(data["results"])
                             st.dataframe(df, use_container_width=True, hide_index=True)
-
-                            # Export CSV
                             csv = df.to_csv(index=False)
-                            st.download_button(
-                                "⬇️ Download as CSV",
-                                csv,
-                                "query_results.csv",
-                                "text/csv",
-                            )
+                            st.download_button("⬇️ Download as CSV", csv, "query_results.csv", "text/csv")
                 else:
                     st.error(f"❌ {data.get('detail', 'Something went wrong.')}")
 
@@ -264,7 +296,7 @@ elif ask:
 
 st.divider()
 
-# ─── History ──────────────────────────────────────────────────────────────────
+# ─── History ───────────────────────────────────────────────────────────────────
 st.subheader("📜 Recent Queries")
 if st.button("🔄 Refresh"):
     try:
@@ -281,7 +313,7 @@ if st.button("🔄 Refresh"):
     except Exception as e:
         st.error(str(e))
 
-# ─── Sidebar ──────────────────────────────────────────────────────────────────
+# ─── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 🔍 QueryGenie AI")
     st.markdown("---")
@@ -331,7 +363,7 @@ with st.sidebar:
     st.markdown("""
 | | |
 |---|---|
-| LLM | Groq LLaMA 3.3 |
+| LLM | Groq GPT-OSS-120B |
 | Embeddings | sentence-transformers |
 | Vector DB | Qdrant |
 | Backend | FastAPI |

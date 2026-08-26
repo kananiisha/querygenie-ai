@@ -164,3 +164,63 @@ def query_history(db: Session = Depends(get_db)):
         }
         for l in logs
     ]
+@app.post("/recommendations")
+def get_recommendations(req: QueryRequest):
+    """
+    Generates smart question recommendations based on
+    the active dataset's schema and sample data.
+    """
+    try:
+        import os
+        from groq import Groq
+        from backend.schema_indexer.retrieve_schema import get_relevant_tables
+
+        # Get schema context
+        schema_context = get_relevant_tables(
+            "show me everything about this dataset",
+            top_k=3
+        )
+
+        if req.table_hint:
+            schema_context = [s for s in schema_context
+                            if s["table"] == req.table_hint][:1] or schema_context[:1]
+
+        schema_text = "\n".join([
+            f"Table: {s['table']}, Columns: {', '.join(s['columns'][:15])}"
+            for s in schema_context
+        ])
+
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a data analyst. Generate exactly 6 useful business questions a non-technical user could ask about this dataset. Return ONLY a JSON array of 6 strings, nothing else. Example: [\"How many rows?\", \"What is the total sales?\"]"
+                },
+                {
+                    "role": "user",
+                    "content": f"Dataset schema:\n{schema_text}\n\nGenerate 6 smart questions:"
+                }
+            ],
+            temperature=0.7,
+            max_tokens=300,
+        )
+
+        import json
+        raw = response.choices[0].message.content.strip()
+        # Clean markdown if present
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        questions = json.loads(raw)
+        return {"recommendations": questions[:6]}
+
+    except Exception as e:
+        # Fallback to generic questions if LLM fails
+        return {"recommendations": [
+            "How many rows are in this dataset?",
+            "What are the unique values in the first column?",
+            "Show me the top 5 records",
+            "What is the total count by category?",
+            "Show me records from the last month",
+            "What is the average value?",
+        ]}
