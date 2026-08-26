@@ -1,10 +1,10 @@
 """
 FastAPI application — main entry point.
 """
-
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from scipy.datasets import clear_cache
 from sqlalchemy.orm import Session
 
 from backend.database import get_db, init_db, QueryLog
@@ -24,7 +24,6 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
-    # Auto-index schema into Qdrant on startup
     try:
         from backend.schema_indexer.index_schema import build_schema_index
         build_schema_index()
@@ -32,12 +31,13 @@ def startup():
     except Exception as e:
         print(f"Schema indexing failed on startup: {e}")
 
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
 
-# ─── Auth ────────────────────────────────────────────────────────────────────
+# ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
     email: str
@@ -71,23 +71,63 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer"}
 
 
-# ─── Query ───────────────────────────────────────────────────────────────────
+# ─── File Upload ───────────────────────────────────────────────────────────────
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        import os as _os
+        allowed = [".csv", ".xlsx", ".xls"]
+        ext = _os.path.splitext(file.filename)[1].lower()
+        if ext not in allowed:
+            raise HTTPException(status_code=400, detail="File type not supported. Use CSV or Excel.")
+
+        file_bytes = await file.read()
+        size_mb = len(file_bytes) / (1024 * 1024)
+        if size_mb > 500:
+            raise HTTPException(status_code=400, detail=f"File too large ({size_mb:.0f}MB). Max 500MB.")
+
+        from backend.file_ingestion import ingest_file, index_uploaded_schema
+        metadata = ingest_file(file_bytes, file.filename)
+        index_uploaded_schema(metadata)
+
+        from backend.agents.pipeline import clear_cache
+        clear_cache()
+
+        return {
+            "status": "success",
+            "table_name": metadata["table_name"],
+            "filename": metadata["original_filename"],
+            "rows": metadata["row_count"],
+            "columns": metadata["columns"],
+            "size_mb": metadata["size_mb"],
+            "message": f"Successfully processed {metadata['row_count']:,} rows.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/tables")
+def list_tables():
+    from backend.file_ingestion import list_uploaded_tables
+    return {"tables": list_uploaded_tables()}
+
+
+# ─── Query ────────────────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
     question: str
+    table_hint: str | None = None
 
 
 @app.post("/query")
 def query(req: QueryRequest, db: Session = Depends(get_db)):
-    """
-    Main endpoint — runs the full agent pipeline and returns
-    question, SQL, raw results, and plain-English answer.
-    """
     try:
         from backend.agents.pipeline import run_pipeline
-        output = run_pipeline(req.question)
+        output = run_pipeline(req.question, table_hint=req.table_hint)
 
-        # Log to DB
         log = QueryLog(
             question=req.question,
             generated_sql=output["sql"],
