@@ -1,5 +1,5 @@
 """
-QueryGenie AI — Frontend with Upload, Recommendations, Caching
+QueryGenie AI — Frontend with Upload, Recommendations, Caching, Auto Charts
 """
 
 import streamlit as st
@@ -87,6 +87,39 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+# ─── Auto Chart Function ───────────────────────────────────────────────────────
+def auto_chart(df: pd.DataFrame, question: str) -> bool:
+    if df is None or df.empty or len(df) < 2:
+        return False
+
+    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+    text_cols = df.select_dtypes(include=["object"]).columns.tolist()
+
+    if not numeric_cols:
+        return False
+
+    q_lower = question.lower()
+    chart_type = "bar"
+    if any(w in q_lower for w in ["trend", "over time", "monthly", "daily", "yearly", "date"]):
+        chart_type = "line"
+
+    num_col = numeric_cols[0]
+    label_col = text_cols[0] if text_cols else None
+
+    st.markdown("### 📈 Auto Chart")
+    if label_col and len(df) <= 20:
+        chart_df = df.set_index(label_col)[num_col]
+        if chart_type == "line":
+            st.line_chart(chart_df)
+        else:
+            st.bar_chart(chart_df)
+    else:
+        st.bar_chart(df[num_col])
+
+    return True
+
+
 # ─── Session State ─────────────────────────────────────────────────────────────
 if "mode" not in st.session_state:
     st.session_state.mode = "demo"
@@ -129,17 +162,13 @@ if st.session_state.mode == "upload":
 
     col_info1, col_info2, col_info3 = st.columns(3)
     with col_info1:
-        st.info("📄 **CSV files** — any size up to 500MB")
+        st.info("📄 **CSV files** — up to 500MB")
     with col_info2:
-        st.info("📊 **Excel files** — .xlsx or .xls")
+        st.info("📊 **Excel** — .xlsx or .xls")
     with col_info3:
-        st.info("⚡ **Large files** — chunked, 1M+ rows supported")
+        st.info("⚡ **Large files** — 1M+ rows supported")
 
-    uploaded_file = st.file_uploader(
-        "Choose a file",
-        type=["csv", "xlsx", "xls"],
-        label_visibility="collapsed"
-    )
+    uploaded_file = st.file_uploader("Choose a file", type=["csv", "xlsx", "xls"], label_visibility="collapsed")
 
     if uploaded_file:
         size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
@@ -161,12 +190,11 @@ if st.session_state.mode == "upload":
                         st.session_state.uploaded_columns = data["columns"]
                         st.session_state.uploaded_filename = data["filename"]
                         st.success(f"✅ **{data['filename']}** processed! {data['rows']:,} rows, {len(data['columns'])} columns.")
-                        st.markdown("**Columns detected:**")
                         cols_html = " ".join([f'<span class="schema-pill">{c}</span>' for c in data["columns"]])
                         st.markdown(cols_html, unsafe_allow_html=True)
 
-                        # ── AI Query Recommendations ──────────────────────
-                        st.markdown("### 💡 AI-Suggested Questions for Your Dataset")
+                        # AI Recommendations
+                        st.markdown("### 💡 AI-Suggested Questions")
                         with st.spinner("Generating smart questions..."):
                             try:
                                 rec_res = requests.post(
@@ -181,11 +209,10 @@ if st.session_state.mode == "upload":
                     else:
                         st.error(f"❌ {data.get('detail', 'Upload failed.')}")
                 except requests.exceptions.Timeout:
-                    st.error("⏱️ Timed out — file may be too large. Try a smaller file first.")
+                    st.error("⏱️ Upload timed out — try a smaller file.")
                 except Exception as e:
                     st.error(f"❌ {e}")
 
-    # Show AI recommendations
     if st.session_state.recommendations:
         st.markdown("### 💡 Suggested Questions")
         cols = st.columns(2)
@@ -194,7 +221,6 @@ if st.session_state.mode == "upload":
                 if st.button(f"▸ {rec}", key=f"rec_{i}", use_container_width=True):
                     st.session_state.selected_question = rec
 
-    # Show previously uploaded tables
     try:
         tables_res = requests.get(f"{BACKEND_URL}/tables", timeout=5)
         if tables_res.status_code == 200:
@@ -216,7 +242,7 @@ if st.session_state.mode == "upload":
         pass
 
     if st.session_state.uploaded_filename:
-        st.info(f"📊 Active dataset: **{st.session_state.uploaded_filename}** — {len(st.session_state.uploaded_columns)} columns")
+        st.info(f"📊 Active: **{st.session_state.uploaded_filename}** — {len(st.session_state.uploaded_columns)} columns")
 
     st.divider()
 
@@ -259,7 +285,7 @@ if ask and question:
                     cached = data.get("cached", False)
                     st.markdown(f"""
                     <div class="answer-card">
-                        <div class="answer-label">💬 Answer {' ⚡ (cached)' if cached else ''}</div>
+                        <div class="answer-label">💬 Answer {'⚡ cached' if cached else ''}</div>
                         <div class="answer-text">{data['answer']}</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -276,8 +302,12 @@ if ask and question:
                         st.code(data["sql"], language="sql")
 
                     if data.get("results"):
-                        with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)"):
-                            df = pd.DataFrame(data["results"])
+                        df = pd.DataFrame(data["results"])
+
+                        # Auto chart
+                        charted = auto_chart(df, question)
+
+                        with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)", expanded=not charted):
                             st.dataframe(df, use_container_width=True, hide_index=True)
                             csv = df.to_csv(index=False)
                             st.download_button("⬇️ Download as CSV", csv, "query_results.csv", "text/csv")
