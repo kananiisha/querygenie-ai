@@ -295,13 +295,19 @@ if ask and question:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    c1, c2, c3 = st.columns(3)
+                    confidence = data.get("confidence", {})
+                    conf_score = confidence.get("score", 0)
+                    conf_label = confidence.get("label", "")
+
+                    c1, c2, c3, c4 = st.columns(4)
                     with c1:
                         st.metric("📊 Rows Returned", len(data.get("results", [])))
                     with c2:
                         st.metric("🤖 Agents Used", 5)
                     with c3:
                         st.metric("✅ Status", "Cached ⚡" if cached else "Success")
+                    with c4:
+                        st.metric("🎯 Confidence", f"{conf_score}% {conf_label}")
 
                     with st.expander("🔍 View Generated SQL"):
                         st.code(data["sql"], language="sql")
