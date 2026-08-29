@@ -1,5 +1,5 @@
 """
-QueryGenie AI — Frontend with Upload, Recommendations, Caching, Auto Charts
+QueryGenie AI — Frontend with Upload, Recommendations, Caching, Auto Charts, History Search
 """
 
 import streamlit as st
@@ -92,21 +92,16 @@ st.markdown("""
 def auto_chart(df: pd.DataFrame, question: str) -> bool:
     if df is None or df.empty or len(df) < 2:
         return False
-
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     text_cols = df.select_dtypes(include=["object"]).columns.tolist()
-
     if not numeric_cols:
         return False
-
     q_lower = question.lower()
     chart_type = "bar"
     if any(w in q_lower for w in ["trend", "over time", "monthly", "daily", "yearly", "date"]):
         chart_type = "line"
-
     num_col = numeric_cols[0]
     label_col = text_cols[0] if text_cols else None
-
     st.markdown("### 📈 Auto Chart")
     if label_col and len(df) <= 20:
         chart_df = df.set_index(label_col)[num_col]
@@ -116,7 +111,6 @@ def auto_chart(df: pd.DataFrame, question: str) -> bool:
             st.bar_chart(chart_df)
     else:
         st.bar_chart(df[num_col])
-
     return True
 
 
@@ -133,6 +127,8 @@ if "recommendations" not in st.session_state:
     st.session_state.recommendations = []
 if "selected_question" not in st.session_state:
     st.session_state.selected_question = ""
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 # ─── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -193,7 +189,6 @@ if st.session_state.mode == "upload":
                         cols_html = " ".join([f'<span class="schema-pill">{c}</span>' for c in data["columns"]])
                         st.markdown(cols_html, unsafe_allow_html=True)
 
-                        # AI Recommendations
                         st.markdown("### 💡 AI-Suggested Questions")
                         with st.spinner("Generating smart questions..."):
                             try:
@@ -283,6 +278,16 @@ if ask and question:
 
                 if res.status_code == 200:
                     cached = data.get("cached", False)
+
+                    # Save to local history
+                    st.session_state.history.insert(0, {
+                        "question": question,
+                        "sql": data["sql"],
+                        "answer": data["answer"],
+                        "status": "success",
+                        "cached": cached,
+                    })
+
                     st.markdown(f"""
                     <div class="answer-card">
                         <div class="answer-label">💬 Answer {'⚡ cached' if cached else ''}</div>
@@ -303,10 +308,7 @@ if ask and question:
 
                     if data.get("results"):
                         df = pd.DataFrame(data["results"])
-
-                        # Auto chart
                         charted = auto_chart(df, question)
-
                         with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)", expanded=not charted):
                             st.dataframe(df, use_container_width=True, hide_index=True)
                             csv = df.to_csv(index=False)
@@ -315,7 +317,7 @@ if ask and question:
                     st.error(f"❌ {data.get('detail', 'Something went wrong.')}")
 
             except requests.exceptions.ConnectionError:
-                st.error("❌ Backend not running. Start it with: `python -m uvicorn backend.main:app --reload`")
+                st.error("❌ Backend not running.")
             except requests.exceptions.Timeout:
                 st.error("⏱️ Timed out — please try again.")
             except Exception as e:
@@ -326,22 +328,56 @@ elif ask:
 
 st.divider()
 
-# ─── History ───────────────────────────────────────────────────────────────────
-st.subheader("📜 Recent Queries")
-if st.button("🔄 Refresh"):
+# ─── History with Search ───────────────────────────────────────────────────────
+st.subheader("📜 Query History")
+
+hist_col1, hist_col2 = st.columns([3, 1])
+with hist_col1:
+    search_term = st.text_input("🔍 Search history...", placeholder="Type to filter queries...", label_visibility="collapsed")
+with hist_col2:
+    refresh = st.button("🔄 Refresh", use_container_width=True)
+
+if refresh:
     try:
         hist = requests.get(f"{BACKEND_URL}/query/history", timeout=10).json()
-        if hist:
-            for item in hist:
-                icon = "✅" if item["status"] == "success" else "❌"
-                with st.expander(f"{icon} {item['question']}"):
-                    if item["sql"]:
-                        st.code(item["sql"], language="sql")
-                    st.caption(f"🕐 {item['created_at']}")
-        else:
-            st.info("No queries yet!")
+        st.session_state.history = [
+            {
+                "question": item["question"],
+                "sql": item["sql"],
+                "answer": "",
+                "status": item["status"],
+                "cached": False,
+            }
+            for item in hist
+        ]
     except Exception as e:
         st.error(str(e))
+
+# Filter history by search term
+display_history = st.session_state.history
+if search_term:
+    display_history = [
+        h for h in st.session_state.history
+        if search_term.lower() in h["question"].lower()
+    ]
+
+if display_history:
+    st.markdown(f"*Showing {len(display_history)} {'result' if len(display_history) == 1 else 'results'}*")
+    for item in display_history[:20]:
+        icon = "✅" if item["status"] == "success" else "❌"
+        cached_tag = " ⚡" if item.get("cached") else ""
+        with st.expander(f"{icon} {item['question']}{cached_tag}"):
+            if item.get("answer"):
+                st.markdown(f"**Answer:** {item['answer']}")
+            if item.get("sql"):
+                st.code(item["sql"], language="sql")
+            # Re-run button
+            if st.button("▶ Ask again", key=f"rerun_{item['question'][:30]}"):
+                st.session_state.selected_question = item["question"]
+elif search_term:
+    st.info(f"No queries matching '{search_term}'")
+else:
+    st.info("No queries yet — ask something above!")
 
 # ─── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
