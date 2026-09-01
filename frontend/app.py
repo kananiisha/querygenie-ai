@@ -234,7 +234,13 @@ def show_auth_page():
             email = st.text_input("Email", placeholder="you@example.com", key="login_email")
             password = st.text_input("Password", type="password", placeholder="••••••••", key="login_pass")
             if st.button("Login →", type="primary", key="login_btn"):
-                if email and password:
+                if not email:
+                    st.error("❌ Please enter your email address.")
+                elif "@" not in email or "." not in email:
+                    st.error("❌ Please enter a valid email address.")
+                elif not password:
+                    st.error("❌ Please enter your password.")
+                else:
                     try:
                         res = requests.post(
                             f"{BACKEND_URL}/auth/login",
@@ -246,12 +252,16 @@ def show_auth_page():
                             st.session_state.token = res.json()["access_token"]
                             st.session_state.user_email = email
                             st.rerun()
+                        elif res.status_code == 401:
+                            st.error("❌ Incorrect email or password. Please try again.")
                         else:
-                            st.error("❌ Invalid email or password.")
-                    except Exception as e:
-                        st.error(f"❌ Cannot connect to backend: {e}")
-                else:
-                    st.warning("Please fill in all fields.")
+                            st.error("❌ Login failed. Please try again.")
+                    except requests.exceptions.ConnectionError:
+                        st.error("❌ Cannot connect to server. Make sure the backend is running.")
+                    except requests.exceptions.Timeout:
+                        st.error("❌ Server took too long to respond. Please try again.")
+                    except Exception:
+                        st.error("❌ Something went wrong. Please try again.")
 
             st.markdown("---")
             st.markdown(
@@ -265,26 +275,41 @@ def show_auth_page():
             reg_pass = st.text_input("Password", type="password", placeholder="Min 6 characters", key="reg_pass")
             reg_pass2 = st.text_input("Confirm Password", type="password", placeholder="••••••••", key="reg_pass2")
             if st.button("Create Account →", type="primary", key="reg_btn"):
-                if reg_email and reg_pass and reg_pass2:
-                    if reg_pass != reg_pass2:
-                        st.error("❌ Passwords don't match.")
-                    elif len(reg_pass) < 6:
-                        st.error("❌ Password must be at least 6 characters.")
-                    else:
-                        try:
-                            res = requests.post(
-                                f"{BACKEND_URL}/auth/register",
-                                json={"email": reg_email, "password": reg_pass},
-                                timeout=10,
-                            )
-                            if res.status_code == 200:
-                                st.success("✅ Account created! Please login.")
-                            else:
-                                st.error(f"❌ {res.json().get('detail', 'Registration failed.')}")
-                        except Exception as e:
-                            st.error(f"❌ {e}")
+                if not reg_email:
+                    st.error("❌ Please enter your email address.")
+                elif "@" not in reg_email or "." not in reg_email:
+                    st.error("❌ Please enter a valid email address (e.g. name@gmail.com).")
+                elif not reg_pass:
+                    st.error("❌ Please enter a password.")
+                elif len(reg_pass) < 6:
+                    st.error("❌ Password must be at least 6 characters long.")
+                elif not reg_pass2:
+                    st.error("❌ Please confirm your password.")
+                elif reg_pass != reg_pass2:
+                    st.error("❌ Passwords do not match. Please try again.")
                 else:
-                    st.warning("Please fill in all fields.")
+                    try:
+                        res = requests.post(
+                            f"{BACKEND_URL}/auth/register",
+                            json={"email": reg_email, "password": reg_pass},
+                            timeout=10,
+                        )
+                        if res.status_code == 200:
+                            st.success("✅ Account created successfully! Please go to Login tab.")
+                        elif res.status_code == 400:
+                            st.error("❌ This email is already registered. Please login instead.")
+                        else:
+                            try:
+                                detail = res.json().get("detail", "Registration failed.")
+                                st.error(f"❌ {detail}")
+                            except Exception:
+                                st.error("❌ Something went wrong. Please try again.")
+                    except requests.exceptions.ConnectionError:
+                        st.error("❌ Cannot connect to server. Make sure the backend is running.")
+                    except requests.exceptions.Timeout:
+                        st.error("❌ Server took too long to respond. Please try again.")
+                    except Exception as e:
+                        st.error("❌ Something went wrong. Please try again.")
 
 
 # ─── Main App ──────────────────────────────────────────────────────────────────
