@@ -4,8 +4,8 @@ FastAPI application — main entry point.
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from scipy.datasets import clear_cache
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from backend.database import get_db, init_db, QueryLog
 from backend.auth import hash_password, verify_password, create_access_token
@@ -51,23 +51,37 @@ class LoginRequest(BaseModel):
 
 @app.post("/auth/register")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    from backend.database import User
-    existing = db.query(User).filter(User.email == req.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered.")
-    user = User(email=req.email, hashed_password=hash_password(req.password))
-    db.add(user)
-    db.commit()
-    return {"message": "Registered successfully."}
+    # Use raw SQL to bypass ORM session cache
+    result = db.execute(
+        text("SELECT id FROM users WHERE email = :email"),
+        {"email": req.email}
+    ).fetchone()
+
+    if result:
+        raise HTTPException(status_code=400, detail="Email already registered. Please login instead.")
+    try:
+        from backend.database import User
+        user = User(email=req.email, hashed_password=hash_password(req.password))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {"message": "Registered successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
 @app.post("/auth/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    from backend.database import User
-    user = db.query(User).filter(User.email == req.email).first()
-    if not user or not verify_password(req.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials.")
-    token = create_access_token({"sub": str(user.id), "email": user.email})
+    result = db.execute(
+        text("SELECT id, email, hashed_password FROM users WHERE email = :email"),
+        {"email": req.email}
+    ).fetchone()
+
+    if not result or not verify_password(req.password, result[2]):
+        raise HTTPException(status_code=401, detail="Incorrect email or password. Please try again.")
+
+    token = create_access_token({"sub": str(result[0]), "email": result[1]})
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -115,12 +129,63 @@ def list_tables():
     return {"tables": list_uploaded_tables()}
 
 
-# ─── Query ────────────────────────────────────────────────────────────────────
+# ─── Recommendations ──────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
     question: str
     table_hint: str | None = None
 
+
+@app.post("/recommendations")
+def get_recommendations(req: QueryRequest):
+    try:
+        import os, json
+        from groq import Groq
+        from backend.schema_indexer.retrieve_schema import get_relevant_tables
+
+        schema_context = get_relevant_tables("show me everything about this dataset", top_k=3)
+        if req.table_hint:
+            schema_context = [s for s in schema_context if s["table"] == req.table_hint][:1] or schema_context[:1]
+
+        schema_text = "\n".join([
+            f"Table: {s['table']}, Columns: {', '.join(s['columns'][:15])}"
+            for s in schema_context
+        ])
+
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a data analyst. Generate exactly 6 useful business questions a non-technical user could ask about this dataset. Return ONLY a JSON array of 6 strings, nothing else."
+                },
+                {
+                    "role": "user",
+                    "content": f"Dataset schema:\n{schema_text}\n\nGenerate 6 smart questions:"
+                }
+            ],
+            temperature=0.7,
+            max_tokens=300,
+        )
+
+        raw = response.choices[0].message.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        questions = json.loads(raw)
+        return {"recommendations": questions[:6]}
+
+    except Exception:
+        return {"recommendations": [
+            "How many rows are in this dataset?",
+            "What are the unique values in the first column?",
+            "Show me the top 5 records",
+            "What is the total count by category?",
+            "Show me the most recent records",
+            "What is the average value?",
+        ]}
+
+
+# ─── Query ────────────────────────────────────────────────────────────────────
 
 @app.post("/query")
 def query(req: QueryRequest, db: Session = Depends(get_db)):
@@ -141,6 +206,8 @@ def query(req: QueryRequest, db: Session = Depends(get_db)):
             "sql": output["sql"],
             "results": output["results"],
             "answer": output["answer"],
+            "confidence": output.get("confidence", {}),
+            "cached": output.get("cached", False),
             "status": "success",
         }
 
@@ -164,63 +231,3 @@ def query_history(db: Session = Depends(get_db)):
         }
         for l in logs
     ]
-@app.post("/recommendations")
-def get_recommendations(req: QueryRequest):
-    """
-    Generates smart question recommendations based on
-    the active dataset's schema and sample data.
-    """
-    try:
-        import os
-        from groq import Groq
-        from backend.schema_indexer.retrieve_schema import get_relevant_tables
-
-        # Get schema context
-        schema_context = get_relevant_tables(
-            "show me everything about this dataset",
-            top_k=3
-        )
-
-        if req.table_hint:
-            schema_context = [s for s in schema_context
-                            if s["table"] == req.table_hint][:1] or schema_context[:1]
-
-        schema_text = "\n".join([
-            f"Table: {s['table']}, Columns: {', '.join(s['columns'][:15])}"
-            for s in schema_context
-        ])
-
-        client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a data analyst. Generate exactly 6 useful business questions a non-technical user could ask about this dataset. Return ONLY a JSON array of 6 strings, nothing else. Example: [\"How many rows?\", \"What is the total sales?\"]"
-                },
-                {
-                    "role": "user",
-                    "content": f"Dataset schema:\n{schema_text}\n\nGenerate 6 smart questions:"
-                }
-            ],
-            temperature=0.7,
-            max_tokens=300,
-        )
-
-        import json
-        raw = response.choices[0].message.content.strip()
-        # Clean markdown if present
-        raw = raw.replace("```json", "").replace("```", "").strip()
-        questions = json.loads(raw)
-        return {"recommendations": questions[:6]}
-
-    except Exception as e:
-        # Fallback to generic questions if LLM fails
-        return {"recommendations": [
-            "How many rows are in this dataset?",
-            "What are the unique values in the first column?",
-            "Show me the top 5 records",
-            "What is the total count by category?",
-            "Show me records from the last month",
-            "What is the average value?",
-        ]}
