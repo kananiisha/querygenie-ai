@@ -1,5 +1,5 @@
 """
-QueryGenie AI — Full UI with Login, Upload, Charts, History Search, Confidence
+QueryGenie AI — Full UI v3 with all fixes
 """
 
 import streamlit as st
@@ -21,33 +21,6 @@ st.markdown("""
     #MainMenu, footer, header { visibility: hidden; }
     .stApp { background-color: #f8fafc; }
 
-    /* Auth page */
-    .auth-container {
-        max-width: 420px;
-        margin: 60px auto;
-        background: white;
-        border-radius: 20px;
-        padding: 48px 40px;
-        box-shadow: 0 8px 40px rgba(99,102,241,0.12);
-        border: 1px solid #e2e8f0;
-    }
-    .auth-logo {
-        text-align: center;
-        font-size: 2.4rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 8px;
-    }
-    .auth-subtitle {
-        text-align: center;
-        color: #94a3b8;
-        font-size: 0.95rem;
-        margin-bottom: 32px;
-    }
-
-    /* Hero */
     .hero {
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         border-radius: 16px;
@@ -58,7 +31,6 @@ st.markdown("""
     .hero h1 { font-size: 2.2rem; font-weight: 800; margin: 0 0 6px 0; color: white; }
     .hero p { font-size: 1rem; opacity: 0.9; margin: 0; color: white; }
 
-    /* Answer card */
     .answer-card {
         background: white;
         border-left: 4px solid #6366f1;
@@ -70,7 +42,6 @@ st.markdown("""
     .answer-label { color: #6366f1; font-size: 0.72rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
     .answer-text { color: #1e293b; font-size: 1.05rem; line-height: 1.75; }
 
-    /* Schema pill */
     .schema-pill {
         display: inline-block;
         background: #ede9fe;
@@ -82,7 +53,6 @@ st.markdown("""
         margin: 2px;
     }
 
-    /* Sample pill */
     .pill {
         display: inline-block;
         background: #ede9fe;
@@ -94,7 +64,6 @@ st.markdown("""
         margin: 3px;
     }
 
-    /* Inputs */
     .stTextInput > div > div > input {
         border: 2px solid #e2e8f0 !important;
         border-radius: 10px !important;
@@ -108,7 +77,6 @@ st.markdown("""
         box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
     }
 
-    /* Buttons */
     .stButton > button {
         background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
         color: white !important;
@@ -118,61 +86,17 @@ st.markdown("""
         font-size: 1rem !important;
         padding: 12px !important;
         width: 100% !important;
-        transition: opacity 0.2s !important;
-    }
-    .stButton > button:hover { opacity: 0.9 !important; }
-
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: white !important;
-        border-right: 1px solid #e2e8f0 !important;
     }
 
-    /* Step items */
-    .step-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 0;
-        color: #475569;
-        font-size: 0.9rem;
-        border-bottom: 1px solid #f1f5f9;
-    }
-    .step-num {
-        background: #ede9fe;
-        color: #6366f1;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.8rem;
-        flex-shrink: 0;
-    }
-
-    /* Confidence badge */
-    .conf-high { color: #16a34a; font-weight: 700; }
-    .conf-medium { color: #d97706; font-weight: 700; }
-    .conf-low { color: #dc2626; font-weight: 700; }
-
-    /* User badge in sidebar */
-    .user-badge {
-        background: #f1f5f9;
-        border-radius: 10px;
-        padding: 10px 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
-    }
+    [data-testid="stSidebar"] { background: white !important; border-right: 1px solid #e2e8f0 !important; }
+    .step-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: #475569; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; }
+    .step-num { background: #ede9fe; color: #6366f1; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
+    .user-badge { background: #f1f5f9; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ─── Auto Chart ────────────────────────────────────────────────────────────────
-def auto_chart(df: pd.DataFrame, question: str) -> bool:
+def auto_chart(df, question):
     if df is None or df.empty or len(df) < 2:
         return False
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
@@ -180,142 +104,152 @@ def auto_chart(df: pd.DataFrame, question: str) -> bool:
     if not numeric_cols:
         return False
     q_lower = question.lower()
-    chart_type = "bar"
-    if any(w in q_lower for w in ["trend", "over time", "monthly", "daily", "yearly"]):
-        chart_type = "line"
+    chart_type = "line" if any(w in q_lower for w in ["trend", "over time", "monthly", "daily", "yearly"]) else "bar"
     num_col = numeric_cols[0]
     label_col = text_cols[0] if text_cols else None
     st.markdown("### 📈 Auto Chart")
     if label_col and len(df) <= 20:
         chart_df = df.set_index(label_col)[num_col]
-        if chart_type == "line":
-            st.line_chart(chart_df)
-        else:
-            st.bar_chart(chart_df)
+        st.line_chart(chart_df) if chart_type == "line" else st.bar_chart(chart_df)
     else:
         st.bar_chart(df[num_col])
     return True
 
 
-# ─── Session State ─────────────────────────────────────────────────────────────
+def run_query(question):
+    try:
+        payload = {"question": question}
+        if st.session_state.mode == "upload" and st.session_state.uploaded_table:
+            payload["table_hint"] = st.session_state.uploaded_table
+        res = requests.post(f"{BACKEND_URL}/query", json=payload, timeout=120)
+        return res.json(), res.status_code
+    except requests.exceptions.ConnectionError:
+        return {"detail": "Backend not running."}, 503
+    except requests.exceptions.Timeout:
+        return {"detail": "Timed out — please try again."}, 408
+    except Exception as e:
+        return {"detail": str(e)}, 500
+
+
 defaults = {
-    "logged_in": False,
-    "token": None,
-    "user_email": None,
-    "auth_mode": "login",
-    "mode": "demo",
-    "uploaded_table": None,
-    "uploaded_columns": [],
-    "uploaded_filename": None,
-    "recommendations": [],
-    "selected_question": "",
-    "history": [],
+    "logged_in": False, "token": None, "user_email": None,
+    "mode": "demo", "uploaded_table": None, "uploaded_columns": [],
+    "uploaded_filename": None, "recommendations": [],
+    "selected_question": "", "auto_execute": False,
+    "history": [], "reg_success": False, "auth_tab": "login",
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
 
-# ─── Auth Page ─────────────────────────────────────────────────────────────────
 def show_auth_page():
-    st.markdown("""
-    <div class="auth-container">
-        <div class="auth-logo">🔍 QueryGenie AI</div>
-        <div class="auth-subtitle">Ask your database anything in plain English</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col_l, col_m, col_r = st.columns([1, 2, 1])
+    col_l, col_m, col_r = st.columns([1, 1.2, 1])
     with col_m:
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+        st.markdown("""
+        <div style="text-align:center; padding:32px 0 16px 0;">
+            <div style="font-size:3rem;">🔍</div>
+            <div style="font-size:2rem; font-weight:900; background:linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">QueryGenie AI</div>
+            <div style="color:#94a3b8; font-size:0.9rem; margin:6px 0 24px 0;">Ask your database anything in plain English</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        with tab1:
-            st.markdown("#### Welcome back!")
-            email = st.text_input("Email", placeholder="you@example.com", key="login_email")
-            password = st.text_input("Password", type="password", placeholder="••••••••", key="login_pass")
-            if st.button("Login →", type="primary", key="login_btn"):
-                if not email:
-                    st.error("❌ Please enter your email address.")
-                elif "@" not in email or "." not in email:
-                    st.error("❌ Please enter a valid email address.")
-                elif not password:
-                    st.error("❌ Please enter your password.")
-                else:
-                    try:
-                        res = requests.post(
-                            f"{BACKEND_URL}/auth/login",
-                            json={"email": email, "password": password},
-                            timeout=10,
-                        )
-                        if res.status_code == 200:
-                            st.session_state.logged_in = True
-                            st.session_state.token = res.json()["access_token"]
-                            st.session_state.user_email = email
-                            st.rerun()
-                        elif res.status_code == 401:
-                            st.error("❌ Incorrect email or password. Please try again.")
-                        else:
-                            st.error("❌ Login failed. Please try again.")
-                    except requests.exceptions.ConnectionError:
-                        st.error("❌ Cannot connect to server. Make sure the backend is running.")
-                    except requests.exceptions.Timeout:
-                        st.error("❌ Server took too long to respond. Please try again.")
-                    except Exception:
-                        st.error("❌ Something went wrong. Please try again.")
+        t1, t2 = st.columns(2)
+        with t1:
+            if st.button("🔐 Login", key="tab_login", use_container_width=True):
+                st.session_state.auth_tab = "login"
+                st.session_state.reg_success = False
+        with t2:
+            if st.button("📝 Register", key="tab_register", use_container_width=True):
+                st.session_state.auth_tab = "register"
 
-            st.markdown("---")
-            st.markdown(
-                "<div style='text-align:center; color:#94a3b8; font-size:0.85rem;'>Demo: use any email + password to register first</div>",
-                unsafe_allow_html=True
-            )
+        active = "Login" if st.session_state.auth_tab == "login" else "Register"
+        st.markdown(f"<div style='text-align:center;color:#6366f1;font-size:0.8rem;font-weight:700;margin:-6px 0 12px 0;'>▼ {active}</div>", unsafe_allow_html=True)
 
-        with tab2:
-            st.markdown("#### Create your account")
-            reg_email = st.text_input("Email", placeholder="you@example.com", key="reg_email")
-            reg_pass = st.text_input("Password", type="password", placeholder="Min 6 characters", key="reg_pass")
-            reg_pass2 = st.text_input("Confirm Password", type="password", placeholder="••••••••", key="reg_pass2")
-            if st.button("Create Account →", type="primary", key="reg_btn"):
-                if not reg_email:
-                    st.error("❌ Please enter your email address.")
-                elif "@" not in reg_email or "." not in reg_email:
-                    st.error("❌ Please enter a valid email address (e.g. name@gmail.com).")
-                elif not reg_pass:
-                    st.error("❌ Please enter a password.")
-                elif len(reg_pass) < 6:
-                    st.error("❌ Password must be at least 6 characters long.")
-                elif not reg_pass2:
-                    st.error("❌ Please confirm your password.")
-                elif reg_pass != reg_pass2:
-                    st.error("❌ Passwords do not match. Please try again.")
-                else:
-                    try:
-                        res = requests.post(
-                            f"{BACKEND_URL}/auth/register",
-                            json={"email": reg_email, "password": reg_pass},
-                            timeout=10,
-                        )
-                        if res.status_code == 200:
-                            st.success("✅ Account created successfully! Please go to Login tab.")
-                        elif res.status_code == 400:
-                            st.error("❌ This email is already registered. Please login instead.")
-                        else:
+        if st.session_state.auth_tab == "login":
+            with st.container():
+                st.markdown("<div style='background:white;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(99,102,241,0.10);border:1px solid #e2e8f0;'>", unsafe_allow_html=True)
+                st.markdown("#### 👋 Welcome back!")
+                email = st.text_input("Email address", placeholder="you@example.com", key="login_email")
+                password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_pass")
+                if st.button("Login to QueryGenie →", type="primary", key="login_btn"):
+                    if not email:
+                        st.error("❌ Please enter your email address.")
+                    elif "@" not in email:
+                        st.error("❌ Please enter a valid email address.")
+                    elif not password:
+                        st.error("❌ Please enter your password.")
+                    else:
+                        with st.spinner("Logging in..."):
                             try:
-                                detail = res.json().get("detail", "Registration failed.")
-                                st.error(f"❌ {detail}")
+                                res = requests.post(f"{BACKEND_URL}/auth/login", json={"email": email, "password": password}, timeout=10)
+                                if res.status_code == 200:
+                                    st.session_state.logged_in = True
+                                    st.session_state.token = res.json()["access_token"]
+                                    st.session_state.user_email = email
+                                    st.rerun()
+                                elif res.status_code == 401:
+                                    st.error("❌ Email or password is incorrect.")
+                                    st.info("💡 Not registered yet? Click **Register** above to create a free account.")
+                                else:
+                                    st.error("❌ Login failed. Please try again.")
+                            except requests.exceptions.ConnectionError:
+                                st.error("❌ Cannot connect to server. Make sure backend is running.")
                             except Exception:
                                 st.error("❌ Something went wrong. Please try again.")
-                    except requests.exceptions.ConnectionError:
-                        st.error("❌ Cannot connect to server. Make sure the backend is running.")
-                    except requests.exceptions.Timeout:
-                        st.error("❌ Server took too long to respond. Please try again.")
-                    except Exception as e:
-                        st.error("❌ Something went wrong. Please try again.")
+                st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align:center;color:#94a3b8;font-size:0.82rem;margin-top:10px;'>No account? Click <b>Register</b> above — it's free.</div>", unsafe_allow_html=True)
+
+        else:
+            with st.container():
+                st.markdown("<div style='background:white;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(99,102,241,0.10);border:1px solid #e2e8f0;'>", unsafe_allow_html=True)
+                st.markdown("#### 🚀 Create your free account")
+                if st.session_state.reg_success:
+                    st.success("✅ Account created! Logging you in...")
+                else:
+                    reg_email = st.text_input("Email address", placeholder="you@example.com", key="reg_email")
+                    reg_pass = st.text_input("Password", type="password", placeholder="Minimum 6 characters", key="reg_pass")
+                    reg_pass2 = st.text_input("Confirm password", type="password", placeholder="Re-enter your password", key="reg_pass2")
+                    if st.button("Create Account & Start →", type="primary", key="reg_btn"):
+                        if not reg_email:
+                            st.error("❌ Please enter your email address.")
+                        elif "@" not in reg_email or "." not in reg_email:
+                            st.error("❌ Please enter a valid email (e.g. name@gmail.com).")
+                        elif not reg_pass:
+                            st.error("❌ Please enter a password.")
+                        elif len(reg_pass) < 6:
+                            st.error("❌ Password must be at least 6 characters.")
+                        elif reg_pass != reg_pass2:
+                            st.error("❌ Passwords don't match. Please try again.")
+                        else:
+                            with st.spinner("Creating your account..."):
+                                try:
+                                    res = requests.post(f"{BACKEND_URL}/auth/register", json={"email": reg_email, "password": reg_pass}, timeout=10)
+                                    if res.status_code == 200:
+                                        login_res = requests.post(f"{BACKEND_URL}/auth/login", json={"email": reg_email, "password": reg_pass}, timeout=10)
+                                        if login_res.status_code == 200:
+                                            st.session_state.logged_in = True
+                                            st.session_state.token = login_res.json()["access_token"]
+                                            st.session_state.user_email = reg_email
+                                            st.rerun()
+                                        else:
+                                            st.session_state.auth_tab = "login"
+                                            st.session_state.reg_success = True
+                                            st.rerun()
+                                    elif res.status_code == 400:
+                                        st.error("❌ This email is already registered.")
+                                        st.info("💡 Already have an account? Click **Login** above.")
+                                    else:
+                                        st.error("❌ Registration failed. Please try again.")
+                                except requests.exceptions.ConnectionError:
+                                    st.error("❌ Cannot connect to server. Make sure backend is running.")
+                                except Exception:
+                                    st.error("❌ Something went wrong. Please try again.")
+                st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align:center;color:#94a3b8;font-size:0.82rem;margin-top:10px;'>Already have an account? Click <b>Login</b> above.</div>", unsafe_allow_html=True)
 
 
-# ─── Main App ──────────────────────────────────────────────────────────────────
 def show_main_app():
-
-    # ── Sidebar ────────────────────────────────────────────────────────────────
     with st.sidebar:
         st.markdown(f"""
         <div class="user-badge">
@@ -327,7 +261,7 @@ def show_main_app():
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("🚪 Logout", key="logout_btn", use_container_width=True):
             for k in defaults:
                 st.session_state[k] = defaults[k]
             st.rerun()
@@ -344,9 +278,10 @@ def show_main_app():
                 "Show all customers from Bangalore",
                 "How many orders were cancelled?",
             ]
-            for q in samples:
-                if st.button(f"▸ {q}", key=f"sample_{q[:20]}", use_container_width=True):
+            for i, q in enumerate(samples):
+                if st.button(f"▸ {q}", key=f"sb_{i}", use_container_width=True):
                     st.session_state.selected_question = q
+                    st.session_state.auto_execute = True
         else:
             st.markdown("### 📊 Your Dataset")
             if st.session_state.uploaded_filename:
@@ -361,20 +296,8 @@ def show_main_app():
 
         st.markdown("---")
         st.markdown("### 🏗️ How it works")
-        steps = [
-            ("1", "Schema Retriever"),
-            ("2", "SQL Generator"),
-            ("3", "Validator"),
-            ("4", "Executor"),
-            ("5", "Explainer"),
-        ]
-        for num, label in steps:
-            st.markdown(f"""
-            <div class="step-item">
-                <div class="step-num">{num}</div>
-                <span>{label}</span>
-            </div>
-            """, unsafe_allow_html=True)
+        for num, label in [("1","Schema Retriever"),("2","SQL Generator"),("3","Validator"),("4","Executor"),("5","Explainer")]:
+            st.markdown(f'<div class="step-item"><div class="step-num">{num}</div><span>{label}</span></div>', unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("### ⚙️ Tech Stack")
@@ -389,7 +312,6 @@ def show_main_app():
 | UI | Streamlit |
         """)
 
-    # ── Hero ───────────────────────────────────────────────────────────────────
     st.markdown("""
     <div class="hero">
         <h1>🔍 QueryGenie AI</h1>
@@ -397,41 +319,48 @@ def show_main_app():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Mode Selector ──────────────────────────────────────────────────────────
+    # ── Mode Selector with active/inactive styling ─────────────────────────────
     st.markdown("#### Choose your data source:")
     col_demo, col_upload = st.columns(2)
     with col_demo:
-        if st.button("🏪 Demo Dataset (E-Commerce)", use_container_width=True):
+        is_demo = st.session_state.mode == "demo"
+        if is_demo:
+            st.markdown('<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;padding:1px;">', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="background:white;border:2px solid #6366f1;border-radius:10px;padding:1px;">', unsafe_allow_html=True)
+        if st.button("🏪 Demo Dataset (E-Commerce)", key="demo_mode_btn", use_container_width=True):
             st.session_state.mode = "demo"
             st.session_state.recommendations = []
-    with col_upload:
-        if st.button("📁 Upload Your Own File (CSV/Excel)", use_container_width=True):
-            st.session_state.mode = "upload"
+            st.session_state.selected_question = ""
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown(f"**Current mode:** {'🏪 Demo Dataset' if st.session_state.mode == 'demo' else '📁 Upload Mode'}")
+    with col_upload:
+        is_upload = st.session_state.mode == "upload"
+        if is_upload:
+            st.markdown('<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;padding:1px;">', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="background:white;border:2px solid #6366f1;border-radius:10px;padding:1px;">', unsafe_allow_html=True)
+        if st.button("📁 Upload Your Own File (CSV/Excel)", key="upload_mode_btn", use_container_width=True):
+            st.session_state.mode = "upload"
+            st.session_state.selected_question = ""
+        st.markdown('</div>', unsafe_allow_html=True)
+
     st.divider()
 
-    # ── Upload Mode ────────────────────────────────────────────────────────────
     if st.session_state.mode == "upload":
         st.markdown("### 📁 Upload Your Dataset")
-
-        col_i1, col_i2, col_i3 = st.columns(3)
-        with col_i1:
-            st.info("📄 **CSV** — up to 500MB")
-        with col_i2:
-            st.info("📊 **Excel** — .xlsx / .xls")
-        with col_i3:
-            st.info("⚡ **Large files** — 1M+ rows")
+        c1, c2, c3 = st.columns(3)
+        with c1: st.info("📄 **CSV** — up to 500MB")
+        with c2: st.info("📊 **Excel** — .xlsx / .xls")
+        with c3: st.info("⚡ **Large files** — 1M+ rows")
 
         uploaded_file = st.file_uploader("Choose a file", type=["csv", "xlsx", "xls"], label_visibility="collapsed")
-
         if uploaded_file:
             size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
             st.markdown(f"**File:** `{uploaded_file.name}` — {size_mb:.1f}MB")
             if size_mb > 10:
                 st.warning(f"⚠️ Large file ({size_mb:.0f}MB) — may take a minute.")
-
-            if st.button("⚡ Process & Index File", type="primary"):
+            if st.button("⚡ Process & Index File", key="process_file_btn", type="primary"):
                 with st.spinner(f"Processing {uploaded_file.name}..."):
                     try:
                         res = requests.post(
@@ -447,9 +376,8 @@ def show_main_app():
                             st.success(f"✅ **{data['filename']}** — {data['rows']:,} rows, {len(data['columns'])} columns")
                             cols_html = " ".join([f'<span class="schema-pill">{c}</span>' for c in data["columns"]])
                             st.markdown(cols_html, unsafe_allow_html=True)
-
                             st.markdown("### 💡 AI-Suggested Questions")
-                            with st.spinner("Generating..."):
+                            with st.spinner("Generating smart questions..."):
                                 try:
                                     rec_res = requests.post(
                                         f"{BACKEND_URL}/recommendations",
@@ -468,12 +396,13 @@ def show_main_app():
                         st.error(f"❌ {e}")
 
         if st.session_state.recommendations:
-            st.markdown("### 💡 Suggested Questions")
-            cols = st.columns(2)
+            st.markdown("### 💡 Click a question to ask instantly:")
+            rcols = st.columns(2)
             for i, rec in enumerate(st.session_state.recommendations):
-                with cols[i % 2]:
+                with rcols[i % 2]:
                     if st.button(f"▸ {rec}", key=f"rec_{i}", use_container_width=True):
                         st.session_state.selected_question = rec
+                        st.session_state.auto_execute = True
 
         try:
             tables_res = requests.get(f"{BACKEND_URL}/tables", timeout=5)
@@ -491,7 +420,6 @@ def show_main_app():
                                 st.session_state.uploaded_table = t["table"]
                                 st.session_state.uploaded_columns = t["columns"]
                                 st.session_state.uploaded_filename = dn
-                                st.success(f"Switched to {dn}")
         except Exception:
             pass
 
@@ -500,10 +428,9 @@ def show_main_app():
 
         st.divider()
 
-    # ── Query Input ────────────────────────────────────────────────────────────
     if st.session_state.mode == "demo":
         st.markdown("""
-        <div style="margin-bottom: 8px;">
+        <div style="margin-bottom:8px;">
         <span class="pill">Which customers are from Mumbai?</span>
         <span class="pill">Total revenue from payments?</span>
         <span class="pill">How many orders delivered?</span>
@@ -515,96 +442,75 @@ def show_main_app():
     with col1:
         placeholder = "Ask about your data..." if st.session_state.mode == "upload" else "e.g. Which customers are from Mumbai?"
         default_q = st.session_state.get("selected_question", "")
-        question = st.text_input("q", value=default_q, placeholder=placeholder, label_visibility="collapsed")
+        question = st.text_input("q", value=default_q, placeholder=placeholder, label_visibility="collapsed", key="main_question")
         if default_q:
             st.session_state.selected_question = ""
     with col2:
-        ask = st.button("⚡ Ask", type="primary", use_container_width=True)
+        ask = st.button("⚡ Ask", key="ask_btn", type="primary", use_container_width=True)
 
-    # ── Pipeline ───────────────────────────────────────────────────────────────
-    if ask and question:
+    should_execute = ask or (st.session_state.auto_execute and question)
+    if st.session_state.auto_execute:
+        st.session_state.auto_execute = False
+
+    if should_execute and question:
         if st.session_state.mode == "upload" and not st.session_state.uploaded_table:
             st.warning("⚠️ Please upload a file first.")
         else:
             with st.spinner("🤖 Running AI agents..."):
-                try:
-                    payload = {"question": question}
-                    if st.session_state.mode == "upload" and st.session_state.uploaded_table:
-                        payload["table_hint"] = st.session_state.uploaded_table
+                data, status_code = run_query(question)
+                if status_code == 200:
+                    cached = data.get("cached", False)
+                    confidence = data.get("confidence", {})
+                    conf_score = confidence.get("score", 0)
+                    conf_label = confidence.get("label", "")
 
-                    res = requests.post(f"{BACKEND_URL}/query", json=payload, timeout=120)
-                    data = res.json()
+                    st.session_state.history.insert(0, {
+                        "question": question, "sql": data["sql"],
+                        "answer": data["answer"], "status": "success",
+                        "cached": cached, "confidence": conf_score,
+                    })
 
-                    if res.status_code == 200:
-                        cached = data.get("cached", False)
-                        confidence = data.get("confidence", {})
-                        conf_score = confidence.get("score", 0)
-                        conf_label = confidence.get("label", "")
-                        conf_color = confidence.get("color", "green")
+                    st.markdown(f"""
+                    <div class="answer-card">
+                        <div class="answer-label">💬 Answer {'⚡ cached' if cached else ''}</div>
+                        <div class="answer-text">{data['answer']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                        st.session_state.history.insert(0, {
-                            "question": question,
-                            "sql": data["sql"],
-                            "answer": data["answer"],
-                            "status": "success",
-                            "cached": cached,
-                            "confidence": conf_score,
-                        })
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1: st.metric("📊 Rows", len(data.get("results", [])))
+                    with m2: st.metric("🤖 Agents", 5)
+                    with m3: st.metric("✅ Status", "Cached ⚡" if cached else "Success")
+                    with m4: st.metric("🎯 Confidence", f"{conf_score}% {conf_label}")
 
-                        st.markdown(f"""
-                        <div class="answer-card">
-                            <div class="answer-label">💬 Answer {'⚡ cached' if cached else ''}</div>
-                            <div class="answer-text">{data['answer']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    with st.expander("🔍 View Generated SQL"):
+                        st.code(data["sql"], language="sql")
 
-                        c1, c2, c3, c4 = st.columns(4)
-                        with c1:
-                            st.metric("📊 Rows", len(data.get("results", [])))
-                        with c2:
-                            st.metric("🤖 Agents", 5)
-                        with c3:
-                            st.metric("✅ Status", "Cached ⚡" if cached else "Success")
-                        with c4:
-                            st.metric("🎯 Confidence", f"{conf_score}% {conf_label}")
-
-                        with st.expander("🔍 View Generated SQL"):
-                            st.code(data["sql"], language="sql")
-
-                        if data.get("results"):
-                            df = pd.DataFrame(data["results"])
-                            charted = auto_chart(df, question)
-                            with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)", expanded=not charted):
-                                st.dataframe(df, use_container_width=True, hide_index=True)
-                                csv = df.to_csv(index=False)
-                                st.download_button("⬇️ Download CSV", csv, "results.csv", "text/csv")
-                    else:
-                        st.error(f"❌ {data.get('detail', 'Something went wrong.')}")
-
-                except requests.exceptions.ConnectionError:
-                    st.error("❌ Backend not running. Start: `python -m uvicorn backend.main:app --reload`")
-                except requests.exceptions.Timeout:
-                    st.error("⏱️ Timed out — please try again.")
-                except Exception as e:
-                    st.error(f"❌ {e}")
-
-    elif ask:
+                    if data.get("results"):
+                        df = pd.DataFrame(data["results"])
+                        charted = auto_chart(df, question)
+                        with st.expander(f"📋 Raw Data — {len(data['results'])} row(s)", expanded=not charted):
+                            st.dataframe(df, use_container_width=True, hide_index=True)
+                            csv = df.to_csv(index=False)
+                            st.download_button("⬇️ Download CSV", csv, "results.csv", "text/csv", key="dl_csv")
+                else:
+                    st.error(f"❌ {data.get('detail', 'Something went wrong.')}")
+    elif should_execute:
         st.warning("⚠️ Please type a question first.")
 
     st.divider()
 
-    # ── History with Search ────────────────────────────────────────────────────
     st.subheader("📜 Query History")
-
     h1, h2 = st.columns([3, 1])
     with h1:
         search_term = st.text_input("🔍", placeholder="Search history...", label_visibility="collapsed", key="hist_search")
     with h2:
-        if st.button("🔄 Refresh", use_container_width=True):
+        if st.button("🔄 Refresh", key="refresh_hist", use_container_width=True):
             try:
                 hist = requests.get(f"{BACKEND_URL}/query/history", timeout=10).json()
                 st.session_state.history = [
-                    {"question": i["question"], "sql": i["sql"], "answer": "", "status": i["status"], "cached": False, "confidence": 0}
+                    {"question": i["question"], "sql": i["sql"], "answer": "",
+                     "status": i["status"], "cached": False, "confidence": 0}
                     for i in hist
                 ]
             except Exception as e:
@@ -616,7 +522,7 @@ def show_main_app():
 
     if display_history:
         st.markdown(f"*{len(display_history)} result(s)*")
-        for item in display_history[:20]:
+        for idx, item in enumerate(display_history[:20]):
             icon = "✅" if item["status"] == "success" else "❌"
             cached_tag = " ⚡" if item.get("cached") else ""
             conf = f" — 🎯{item.get('confidence', 0)}%" if item.get("confidence") else ""
@@ -625,15 +531,15 @@ def show_main_app():
                     st.markdown(f"**Answer:** {item['answer']}")
                 if item.get("sql"):
                     st.code(item["sql"], language="sql")
-                if st.button("▶ Ask again", key=f"rerun_{item['question'][:25]}"):
+                if st.button("▶ Ask again", key=f"rerun_{idx}"):
                     st.session_state.selected_question = item["question"]
+                    st.session_state.auto_execute = True
     elif search_term:
         st.info(f"No results for '{search_term}'")
     else:
         st.info("No queries yet — ask something above!")
 
 
-# ─── Router ────────────────────────────────────────────────────────────────────
 if not st.session_state.logged_in:
     show_auth_page()
 else:
