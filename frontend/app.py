@@ -72,6 +72,10 @@ html, body, .stApp {
     transition: all 0.2s !important;
     cursor: pointer !important;
 }
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #00D4FF, #0099CC) !important;
+    color: #070B14 !important;
+}
 .stButton > button:hover {
     background: linear-gradient(135deg, #33DDFF, #00B8E6) !important;
     transform: translateY(-1px) !important;
@@ -533,15 +537,19 @@ def show_auth_page():
         t1, t2 = st.columns(2)
         with t1:
             is_login = st.session_state.auth_tab == "login"
-            tab_class = "btn-active" if is_login else "btn-outline"
-            st.markdown(f'<div class="{tab_class}">', unsafe_allow_html=True)
+            bg = "linear-gradient(135deg,#00D4FF,#0099CC)" if is_login else "transparent"
+            color = "#070B14" if is_login else "#00D4FF"
+            border = "none" if is_login else "1px solid rgba(0,212,255,0.4)"
+            st.markdown(f'<div style="background:{bg};border:{border};border-radius:8px;overflow:hidden;">', unsafe_allow_html=True)
             if st.button("Sign in", key="tab_login", use_container_width=True):
                 st.session_state.auth_tab = "login"
             st.markdown('</div>', unsafe_allow_html=True)
         with t2:
             is_reg = st.session_state.auth_tab == "register"
-            tab_class = "btn-active" if is_reg else "btn-outline"
-            st.markdown(f'<div class="{tab_class}">', unsafe_allow_html=True)
+            bg = "linear-gradient(135deg,#00D4FF,#0099CC)" if is_reg else "transparent"
+            color = "#070B14" if is_reg else "#00D4FF"
+            border = "none" if is_reg else "1px solid rgba(0,212,255,0.4)"
+            st.markdown(f'<div style="background:{bg};border:{border};border-radius:8px;overflow:hidden;">', unsafe_allow_html=True)
             if st.button("Create account", key="tab_register", use_container_width=True):
                 st.session_state.auth_tab = "register"
             st.markdown('</div>', unsafe_allow_html=True)
