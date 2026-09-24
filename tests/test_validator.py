@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from backend.agents.validator import validate_sql, generate_safe_sql, UnsafeQueryError
+from backend.agents.validator import validate_sql, generate_safe_sql, UnsafeQueryError, normalize_sqlite_sql
 
 
 def test_valid_select_query():
@@ -34,6 +34,17 @@ def test_blocks_multiple_statements():
 def test_blocks_empty_query():
     is_valid, reason = validate_sql("")
     assert not is_valid
+
+
+def test_sqlite_cast_syntax_is_normalized():
+    raw_sql = 'SELECT NULL AS "Unnamed: 0", NULL::timestamp AS pickup_datetime;'
+    normalized = normalize_sqlite_sql(raw_sql)
+    assert "::" not in normalized
+    assert "CAST(NULL AS timestamp)" in normalized
+
+    is_valid, reason = validate_sql(normalized)
+    assert is_valid
+    assert reason == ""
 
 
 @patch("backend.agents.validator.generate_sql")

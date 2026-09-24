@@ -15,6 +15,21 @@ FORBIDDEN_KEYWORDS = [
 ]
 
 
+def normalize_sqlite_sql(sql: str) -> str:
+    """Convert common PostgreSQL cast syntax into SQLite-compatible CAST(...) calls."""
+    if not sql:
+        return ""
+
+    normalized = sql.strip()
+    normalized = re.sub(
+        r"(?P<expr>NULL|TRUE|FALSE|CURRENT_DATE|CURRENT_TIMESTAMP|[A-Za-z_][A-Za-z0-9_\"\.]*(?:\.[A-Za-z_][A-Za-z0-9_\"\.]*)*|\([^)]*\)|'[^']*')::(?P<type>[A-Za-z_]+(?:\s*\([^)]*\))?)",
+        lambda m: f"CAST({m.group('expr')} AS {m.group('type')})",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    return normalized
+
+
 class UnsafeQueryError(Exception):
     """Raised when no safe SQL query could be generated after retries."""
     pass
@@ -28,7 +43,8 @@ def validate_sql(sql: str) -> tuple[bool, str]:
     if not sql or not sql.strip():
         return False, "Empty query."
 
-    cleaned = sql.strip().rstrip(";")
+    normalized = normalize_sqlite_sql(sql)
+    cleaned = normalized.strip().rstrip(";")
 
     # Block multiple statements (stacked queries / injection attempt)
     if ";" in cleaned:
@@ -59,6 +75,7 @@ def generate_safe_sql(question: str, schema_context: list[dict], max_retries: in
 
     for attempt in range(max_retries + 1):
         sql = generate_sql(question, schema_context, feedback=feedback)
+        sql = normalize_sqlite_sql(sql)
         is_valid, reason = validate_sql(sql)
         if is_valid:
             return sql

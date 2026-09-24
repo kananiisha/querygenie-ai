@@ -14,11 +14,13 @@ load_dotenv()
 
 MODEL = "openai/gpt-oss-120b"
 
-SYSTEM_PROMPT = """You are a SQL generator for a PostgreSQL e-commerce database.
+SYSTEM_PROMPT = """You are a SQL generator for a SQLite database.
 Rules:
 - Only write SELECT queries. Never write INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Only use the tables and columns provided in the schema context below.
 - Return ONLY the raw SQL query. No explanation, no markdown, no backticks.
+- Use SQLite syntax only; do not use PostgreSQL-specific casting like '::timestamp'.
+- For type casting, prefer SQLite CAST(expr AS type).
 - When the question asks about customers, always include customer name and email in the results.
 - When joining tables, always select meaningful columns like names, not just IDs.
 """
@@ -46,7 +48,7 @@ def generate_sql(question: str, schema_context: list[dict], feedback: str | None
     user_prompt = (
         f"Schema context:\n{schema_text}\n\n"
         f"Question: {question}\n\n"
-        f"Write a single PostgreSQL SELECT query to answer this question."
+        f"Write a single SQLite SELECT query to answer this question."
     )
     if feedback:
         user_prompt += f"\n\n{feedback}"
