@@ -9,3 +9,4 @@ def test_auth_module_uses_default_secret_when_env_missing(monkeypatch):
 
     assert auth.SECRET_KEY
     assert auth.create_access_token({"sub": "user-1"})
+    assert auth.decode_token(None)["email"] == "demo@localhost"
