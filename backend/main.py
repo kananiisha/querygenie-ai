@@ -8,13 +8,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from backend.database import get_db, init_db, QueryLog
-from backend.auth import hash_password, verify_password, create_access_token
+from backend.auth import hash_password, verify_password, create_access_token, decode_token
 
 app = FastAPI(title="QueryGenie AI")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8501"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,7 +88,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 # ─── File Upload ───────────────────────────────────────────────────────────────
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), user: dict = Depends(decode_token)):
     try:
         import os as _os
         allowed = [".csv", ".xlsx", ".xls"]
@@ -124,7 +124,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @app.get("/tables")
-def list_tables():
+def list_tables(user: dict = Depends(decode_token)):
     from backend.file_ingestion import list_uploaded_tables
     return {"tables": list_uploaded_tables()}
 
@@ -135,9 +135,8 @@ class QueryRequest(BaseModel):
     question: str
     table_hint: str | None = None
 
-
 @app.post("/recommendations")
-def get_recommendations(req: QueryRequest):
+def get_recommendations(req: QueryRequest, user: dict = Depends(decode_token)):
     try:
         import os, json
         from groq import Groq
@@ -186,9 +185,8 @@ def get_recommendations(req: QueryRequest):
 
 
 # ─── Query ────────────────────────────────────────────────────────────────────
-
 @app.post("/query")
-def query(req: QueryRequest, db: Session = Depends(get_db)):
+def query(req: QueryRequest, db: Session = Depends(get_db), user: dict = Depends(decode_token)):
     try:
         from backend.agents.pipeline import run_pipeline
         output = run_pipeline(req.question, table_hint=req.table_hint)
@@ -205,7 +203,9 @@ def query(req: QueryRequest, db: Session = Depends(get_db)):
             "question": output["question"],
             "sql": output["sql"],
             "results": output["results"],
+            "data": output["results"],
             "answer": output["answer"],
+            "conclusion": output["answer"],
             "confidence": output.get("confidence", {}),
             "cached": output.get("cached", False),
             "status": "success",
@@ -217,9 +217,8 @@ def query(req: QueryRequest, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/query/history")
-def query_history(db: Session = Depends(get_db)):
+def query_history(db: Session = Depends(get_db), user: dict = Depends(decode_token)):
     logs = db.query(QueryLog).order_by(QueryLog.created_at.desc()).limit(20).all()
     return [
         {

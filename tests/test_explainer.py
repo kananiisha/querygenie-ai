@@ -1,5 +1,17 @@
 from unittest.mock import patch, MagicMock
-from backend.agents.explainer import explain_result
+from backend.agents.explainer import explain_result, fallback_explain_result
+
+
+def test_fallback_explain_result_for_count_questions():
+    answer = fallback_explain_result(
+        question="How many customers are from USA?",
+        sql="SELECT country, COUNT(*) as count FROM customers WHERE country = 'USA'",
+        results=[{"country": "USA", "count": 350}],
+    )
+
+    assert "350" in answer
+    assert "USA" in answer
+    assert "There are" in answer or "There is" in answer
 
 
 @patch("backend.agents.explainer.Groq")
