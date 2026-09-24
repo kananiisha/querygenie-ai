@@ -43,37 +43,64 @@ def clear_query_state():
 
 # Helper to generate contextual suggestions from BYOD uploaded tables
 def get_byod_suggestions(uploaded_dfs):
+    default_questions = [
+        "What are the top 5 revenue-generating customer regions?",
+        "List all orders along with customer name and total amount",
+        "Show average order completion time per country",
+        "Which products sell the most by revenue?",
+        "What is the total sales amount by month?"
+    ]
+
     if not uploaded_dfs:
-        return [
-            "What are the top 5 revenue-generating customer regions?",
-            "List all orders along with customer name and total amount",
-            "Show average order completion time per country"
-        ]
-    
+        return default_questions[:6]
+
     suggestions = []
+    seen = set()
+
+    def add_question(question):
+        q = question.strip()
+        if q and q not in seen:
+            suggestions.append(q)
+            seen.add(q)
+
     for table_name, df in uploaded_dfs.items():
-        cols = list(df.columns)
+        cols = [str(c).strip() for c in df.columns]
         num_cols = df.select_dtypes(include=['number']).columns.tolist()
         cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-        
-        if cat_cols and num_cols:
-            suggestions.append(f"Show total {num_cols[0]} grouped by {cat_cols[0]} from {table_name}")
-        elif cat_cols:
-            suggestions.append(f"List distinct values and count of {cat_cols[0]} in {table_name}")
-        elif len(cols) >= 2:
-            suggestions.append(f"Show top 10 rows from {table_name} ordered by {cols[0]}")
-            
-        if len(suggestions) >= 3:
-            break
+        lower_cols = [str(c).lower() for c in cols]
 
-    # Fallbacks if automatic inference produces fewer than 3 suggestions
-    if len(suggestions) < 3:
-        for table_name, df in uploaded_dfs.items():
-            suggestions.append(f"What is the total row count of {table_name}?")
-            if len(suggestions) >= 3:
-                break
+        # Name-based heuristics for common business columns
+        price_like = next((c for c in num_cols if 'price' in str(c).lower() or 'amount' in str(c).lower() or 'sales' in str(c).lower() or 'total' in str(c).lower() or 'revenue' in str(c).lower()), None)
+        date_like = next((c for c in cols if 'date' in str(c).lower() or 'time' in str(c).lower() or 'month' in str(c).lower()), None)
+        category_like = next((c for c in cat_cols if 'cat' in str(c).lower() or 'type' in str(c).lower() or 'segment' in str(c).lower() or 'region' in str(c).lower() or 'city' in str(c).lower() or 'country' in str(c).lower()), None)
+        id_like = next((c for c in cols if 'id' in str(c).lower() and str(c).lower() != 'customer_id' and str(c).lower() != 'order_id'), None)
+        customer_like = next((c for c in cols if 'customer' in str(c).lower() or 'name' in str(c).lower()), None)
+        product_like = next((c for c in cols if 'product' in str(c).lower() or 'item' in str(c).lower() or 'sku' in str(c).lower()), None)
 
-    return suggestions[:3]
+        if category_like and price_like:
+            add_question(f"What is the total {price_like} by {category_like} in {table_name}?")
+            add_question(f"Which {category_like} has the highest {price_like} in {table_name}?")
+        if customer_like and price_like:
+            add_question(f"Show total {price_like} grouped by {customer_like} from {table_name}")
+        if product_like and price_like:
+            add_question(f"Which {product_like} generates the most {price_like} in {table_name}?")
+        if category_like:
+            add_question(f"How many records are there for each {category_like} in {table_name}?")
+        if date_like and price_like:
+            add_question(f"What is the monthly total {price_like} in {table_name}?")
+        if customer_like:
+            add_question(f"List the top customers by {price_like or 'value'} in {table_name}")
+        if len(cols) >= 2:
+            add_question(f"Show the top 10 rows from {table_name} ordered by {cols[0]}")
+        add_question(f"What is the total row count of {table_name}?")
+        if not num_cols:
+            add_question(f"What are the distinct values in {cat_cols[0] if cat_cols else cols[0]} for {table_name}?")
+
+    if len(suggestions) < 4:
+        for q in default_questions:
+            add_question(q)
+
+    return suggestions[:10]
 
 # -----------------------------------------------------------------------------
 # COMPREHENSIVE CSS FIXES (DARK THEME FOR CODE BLOCKS, TABLES & FILE UPLOADER)
@@ -485,15 +512,24 @@ with tab_query:
             sug_list = [
                 "What are the top 5 revenue-generating customer regions?",
                 "List all orders along with customer name and total amount",
-                "Show average order completion time per country"
+                "Show average order completion time per country",
+                "Which products generate the highest revenue?",
+                "What is the total sales amount by month?",
+                "Which customers have the highest order totals?",
+                "Show number of orders by country",
+                "What is the average order value by region?"
             ]
 
-        col_count = len(sug_list)
-        cols = st.columns(col_count)
-        for idx, (col, sug) in enumerate(zip(cols, sug_list)):
-            with col:
-                if st.button(sug, key=f"sug_{idx}", use_container_width=True):
-                    st.session_state["query_input"] = sug
+        row_size = 2
+        card_count = 0
+        for start in range(0, len(sug_list), row_size):
+            row_items = sug_list[start:start + row_size]
+            cols = st.columns(len(row_items))
+            for idx, (col, sug) in enumerate(zip(cols, row_items)):
+                with col:
+                    if st.button(sug, key=f"sug_{start + idx}", use_container_width=True):
+                        st.session_state["query_input"] = sug
+                card_count += 1
         st.markdown("<br>", unsafe_allow_html=True)
 
     query_input = st.text_area(
