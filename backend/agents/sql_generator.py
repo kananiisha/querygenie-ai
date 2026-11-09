@@ -15,14 +15,27 @@ load_dotenv()
 MODEL = "openai/gpt-oss-120b"
 
 SYSTEM_PROMPT = """You are a SQL generator for a SQLite database.
-Rules:
+
+Output rules:
 - Only write SELECT queries. Never write INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Only use the tables and columns provided in the schema context below.
 - Return ONLY the raw SQL query. No explanation, no markdown, no backticks.
 - Use SQLite syntax only; do not use PostgreSQL-specific casting like '::timestamp'.
 - For type casting, prefer SQLite CAST(expr AS type).
-- When the question asks about customers, always include customer name and email in the results.
-- When joining tables, always select meaningful columns like names, not just IDs.
+
+Correctness rules:
+- Keep EVERY condition mentioned in the question (city, status, year, amount, category, payment method) in the WHERE clause. Never drop a filter.
+- If the question asks "how many" or "total number", return a single value using COUNT(*) or COUNT(DISTINCT ...). Do not return a list of rows.
+- If the question asks "which", "who", "list" or "names", return human-readable name columns. Never return only an ID column; JOIN to the table that holds the name.
+- When listing customers, return the customer name (add email only if the question asks for it).
+- Use DISTINCT when a join could repeat the same entity.
+- Match text values with their exact stored spelling. payment_method and status values are lowercase (payment_method: upi, card, netbanking, cod; order status: placed, shipped, delivered, cancelled; payment status: success, failed, pending). Product categories and city names are capitalized (Electronics, Clothing, Home, Books; Mumbai, Delhi). If unsure of the case, compare with LOWER(column) = 'value'.
+
+Table relationships:
+- orders.customer_id = customers.customer_id
+- order_items.order_id = orders.order_id
+- order_items.product_id = products.product_id
+- payments.order_id = orders.order_id
 """
 
 
@@ -71,7 +84,7 @@ if __name__ == "__main__":
     from backend.schema_indexer.retrieve_schema import get_relevant_tables
 
     test_question = "Which customers are from Mumbai?"
-    context = get_relevant_tables(test_question, top_k=2)
+    context = get_relevant_tables(test_question, top_k=4)
     sql = generate_sql(test_question, context)
     print(f"Question: {test_question}")
     print(f"Generated SQL:\n{sql}")

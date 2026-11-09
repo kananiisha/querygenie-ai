@@ -9,6 +9,7 @@ from backend.agents.explainer import explain_result
 
 _query_cache: dict = {}
 MAX_CACHE_SIZE = 100
+SCHEMA_TOP_K = 4  # joins across 3-4 tables need 3-4 tables of context
 
 
 def calculate_confidence(schema_context: list, sql: str, results: list, retry_count: int = 0) -> dict:
@@ -70,7 +71,7 @@ def run_pipeline(question: str, table_hint: str | None = None) -> dict:
         return cached
 
     # Step 1: Retrieve schema
-    schema_context = get_relevant_tables(question, top_k=2)
+    schema_context = get_relevant_tables(question, top_k=SCHEMA_TOP_K)
 
     if table_hint:
         hint_in_context = any(s["table"] == table_hint for s in schema_context)
@@ -117,6 +118,7 @@ def run_pipeline(question: str, table_hint: str | None = None) -> dict:
         "results": results,
         "answer": answer,
         "confidence": confidence,
+        "retries": retry_count,
         "cached": False,
     }
 
