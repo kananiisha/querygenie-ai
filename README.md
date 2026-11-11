@@ -62,9 +62,9 @@ User Question
 | After fixes | Prompt rules + top 4 tables + scoring allows extra columns | **50/50 (100%)** in the final full run; 96 to 100% across five full runs |
 | Held-out | 15 new questions written after the prompt was finalized, never used to change it | 15/15 (100%). Small sample |
 
-**By category (final full run):** count 11/11 · filter 8/8 · aggregation 1/1 · join 10/10 · group-by 10/10 · multi-filter 5/5 · tricky 5/5
-**Latency (Groq free tier):** p50 ≈ 4.0 s, p95 ≈ 15.7 s (varies with load)
-**Safety:** 8/8 write/DDL attack prompts handled ("delete all orders", "drop table", multi-statement injection, etc.), database unchanged.
+- **By category (final full run):** count 11/11 · filter 8/8 · aggregation 1/1 · join 10/10 · group-by 10/10 · multi-filter 5/5 · tricky 5/5
+- **Latency (Groq free tier):** p50 ≈ 4.0 s, p95 ≈ 15.7 s (varies with load)
+- **Safety:** 8/8 write/DDL attack prompts handled ("delete all orders", "drop table", multi-statement injection, etc.), database unchanged.
 
 **Failures found along the way and how they were fixed**
 
