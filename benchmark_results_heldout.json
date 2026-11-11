@@ -1,0 +1,273 @@
+{
+  "metric": "execution accuracy (result-set match vs gold SQL; extra columns allowed, row count and values must match)",
+  "total": 15,
+  "passed": 15,
+  "accuracy_percent": 100.0,
+  "category_breakdown": {
+    "aggregation": {
+      "pass": 3,
+      "total": 3
+    },
+    "filter": {
+      "pass": 2,
+      "total": 2
+    },
+    "count": {
+      "pass": 1,
+      "total": 1
+    },
+    "groupby": {
+      "pass": 2,
+      "total": 2
+    },
+    "join": {
+      "pass": 3,
+      "total": 3
+    },
+    "multi_filter": {
+      "pass": 1,
+      "total": 1
+    },
+    "tricky": {
+      "pass": 3,
+      "total": 3
+    }
+  },
+  "latency_p50_s": 2.88,
+  "latency_p95_s": 4.3,
+  "avg_retries": 0,
+  "failure_types": {},
+  "safety": {
+    "completed": true,
+    "passed": 0,
+    "total": 8,
+    "results": []
+  },
+  "results": [
+    {
+      "id": 101,
+      "category": "aggregation",
+      "question": "What is the highest payment amount?",
+      "gold_sql": "SELECT MAX(amount) FROM payments",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT MAX(amount) FROM payments",
+      "answer": "The highest payment amount recorded is\u202f$3,598.00.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 25.51
+    },
+    {
+      "id": 102,
+      "category": "filter",
+      "question": "List the customers whose name starts with the letter A.",
+      "gold_sql": "SELECT name FROM customers WHERE name LIKE 'A%'",
+      "rows_expected": 3,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT name FROM customers WHERE name LIKE 'A%';",
+      "answer": "The customers whose names start with the letter\u202fA are Arjun\u202fVerma, Anjali\u202fDesai, and Aditya\u202fRao.",
+      "rows_returned": 3,
+      "retries": 0,
+      "time_seconds": 3.07
+    },
+    {
+      "id": 103,
+      "category": "count",
+      "question": "How many orders were placed in 2025?",
+      "gold_sql": "SELECT COUNT(*) FROM orders WHERE order_date >= '2025-01-01' AND order_date < '2026-01-01'",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT COUNT(*) FROM orders WHERE strftime('%Y', order_date) = '2025';",
+      "answer": "There were 15 orders placed in 2025.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.91
+    },
+    {
+      "id": 104,
+      "category": "aggregation",
+      "question": "What is the average quantity per order item?",
+      "gold_sql": "SELECT AVG(quantity) FROM order_items",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT AVG(quantity) FROM order_items",
+      "answer": "The average quantity for each order item is about\u202f1.42 units.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.54
+    },
+    {
+      "id": 105,
+      "category": "groupby",
+      "question": "For each order, how many different products does it contain? Show the order id and the count.",
+      "gold_sql": "SELECT order_id, COUNT(DISTINCT product_id) FROM order_items GROUP BY order_id",
+      "rows_expected": 15,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT order_id, COUNT(DISTINCT product_id) AS product_count FROM order_items GROUP BY order_id",
+      "answer": "Order\u202f1 contains 2 different products; orders\u202f2,\u202f3,\u202f5,\u202f6,\u202f7,\u202f8 and\u202f9 each contain 1 product; and orders\u202f4 and\u202f10 each contain 2 products.",
+      "rows_returned": 15,
+      "retries": 0,
+      "time_seconds": 4.15
+    },
+    {
+      "id": 106,
+      "category": "filter",
+      "question": "Show the name and email of customers from Bangalore.",
+      "gold_sql": "SELECT name, email FROM customers WHERE city = 'Bangalore'",
+      "rows_expected": 2,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT name, email FROM customers WHERE city = 'Bangalore'",
+      "answer": "There are two customers from Bangalore. Their names and email addresses are:\n\n- Kavya Nair \u2013 kavya.nair@mail.com  \n- Aditya Rao \u2013 aditya.rao@mail.com",
+      "rows_returned": 2,
+      "retries": 0,
+      "time_seconds": 4.3
+    },
+    {
+      "id": 107,
+      "category": "join",
+      "question": "What is the total value (quantity times unit price) of all delivered orders?",
+      "gold_sql": "SELECT SUM(oi.quantity * oi.unit_price) FROM order_items oi JOIN orders o ON o.order_id = oi.order_id WHERE o.status = 'delivered'",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT SUM(oi.quantity * oi.unit_price) AS total_value\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nWHERE o.status = 'delivered';",
+      "answer": "The total value of all delivered orders is\u202f23,728.0.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.77
+    },
+    {
+      "id": 108,
+      "category": "join",
+      "question": "How many orders have customers from each city placed? Show the city and the order count.",
+      "gold_sql": "SELECT c.city, COUNT(o.order_id) FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.city",
+      "rows_expected": 7,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT c.city, COUNT(o.order_id) AS order_count\nFROM orders o\nJOIN customers c ON o.customer_id = c.customer_id\nGROUP BY c.city;",
+      "answer": "Customers from Ahmedabad placed the most orders, with\u202f4\u202forders. Bangalore customers placed\u202f3\u202forders, as did those from Delhi. Mumbai customers placed\u202f2\u202forders, while Chennai, Pune and Surat each placed\u202f1\u202forder.",
+      "rows_returned": 7,
+      "retries": 0,
+      "time_seconds": 2.51
+    },
+    {
+      "id": 109,
+      "category": "groupby",
+      "question": "Which payment method has the highest total amount of successful payments? Show the method and the amount.",
+      "gold_sql": "SELECT payment_method, SUM(amount) AS t FROM payments WHERE status = 'success' GROUP BY payment_method ORDER BY t DESC LIMIT 1",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT payment_method, SUM(amount) AS total_amount\nFROM payments\nWHERE status = 'success'\nGROUP BY payment_method\nORDER BY total_amount DESC\nLIMIT 1",
+      "answer": "The payment method with the highest total amount of successful payments is **card**, with a total of **$13,292**.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.89
+    },
+    {
+      "id": 110,
+      "category": "multi_filter",
+      "question": "List the names of products in the Books or Home category.",
+      "gold_sql": "SELECT name FROM products WHERE category IN ('Books', 'Home')",
+      "rows_expected": 6,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT name FROM products WHERE category IN ('Books', 'Home');",
+      "answer": "The products in the Books or Home category are: Non\u2011stick Pan, LED Desk Lamp, Bedsheet Set, Fiction Novel, Self\u2011Help Book, and Notebook Set.",
+      "rows_returned": 6,
+      "retries": 0,
+      "time_seconds": 2.82
+    },
+    {
+      "id": 111,
+      "category": "tricky",
+      "question": "How many customers have at least one successful payment?",
+      "gold_sql": "SELECT COUNT(DISTINCT c.customer_id) FROM customers c JOIN orders o ON o.customer_id = c.customer_id JOIN payments p ON p.order_id = o.order_id WHERE p.status = 'success'",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT COUNT(DISTINCT c.customer_id) FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN payments p ON o.order_id = p.order_id WHERE p.status = 'success'",
+      "answer": "Nine customers have made at least one successful payment.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.87
+    },
+    {
+      "id": 112,
+      "category": "aggregation",
+      "question": "What is the date of the most recent order?",
+      "gold_sql": "SELECT MAX(order_date) FROM orders",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT MAX(order_date) AS most_recent_order_date FROM orders;",
+      "answer": "The most recent order was placed on June\u202f12,\u202f2025.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.63
+    },
+    {
+      "id": 113,
+      "category": "join",
+      "question": "Show each customer's name and the total amount they paid in successful payments.",
+      "gold_sql": "SELECT c.name, SUM(p.amount) FROM customers c JOIN orders o ON o.customer_id = c.customer_id JOIN payments p ON p.order_id = o.order_id WHERE p.status = 'success' GROUP BY c.customer_id, c.name",
+      "rows_expected": 9,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT c.name, SUM(p.amount) AS total_amount\nFROM customers c\nJOIN orders o ON o.customer_id = c.customer_id\nJOIN payments p ON p.order_id = o.order_id\nWHERE p.status = 'success'\nGROUP BY c.name",
+      "answer": "Aditya Rao paid\u202f$1,895, Anjali\u202fDesai\u202f$1,047, Arjun\u202fVerma\u202f$3,998, Karan\u202fSingh\u202f$3,298, and Kavya\u202fNair\u202f$6,596. Priya\u202fSharma paid\u202f$4,095, Rohan\u202fMehta\u202f$4,798, Sneha\u202fPatel\u202f$2,499, and Vivek\u202fJoshi\u202f$1,299 in successful payments.",
+      "rows_returned": 9,
+      "retries": 0,
+      "time_seconds": 3.41
+    },
+    {
+      "id": 114,
+      "category": "tricky",
+      "question": "Which orders contain more than one distinct product? Show the order ids.",
+      "gold_sql": "SELECT order_id FROM order_items GROUP BY order_id HAVING COUNT(DISTINCT product_id) > 1",
+      "rows_expected": 4,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT order_id FROM order_items GROUP BY order_id HAVING COUNT(DISTINCT product_id) > 1;",
+      "answer": "Orders\u202f1,\u202f4,\u202f10, and\u202f13 each contain more than one distinct product.",
+      "rows_returned": 4,
+      "retries": 0,
+      "time_seconds": 2.43
+    },
+    {
+      "id": 115,
+      "category": "tricky",
+      "question": "What is the average order value (quantity times unit price) across all orders?",
+      "gold_sql": "SELECT AVG(t) FROM (SELECT SUM(quantity * unit_price) AS t FROM order_items GROUP BY order_id) x",
+      "rows_expected": 1,
+      "gold_empty_warning": false,
+      "status": "pass",
+      "failure_type": null,
+      "sql": "SELECT AVG(order_total) FROM (SELECT order_id, SUM(quantity * unit_price) AS order_total FROM order_items GROUP BY order_id);",
+      "answer": "The average value of an order (quantity\u202f\u00d7\u202funit price summed for each order) is about\u202f$2,234.87.",
+      "rows_returned": 1,
+      "retries": 0,
+      "time_seconds": 2.88
+    }
+  ]
+}

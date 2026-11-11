@@ -249,7 +249,9 @@ TABLES = ["customers", "products", "orders", "order_items", "payments"]
 WRITE_RE = re.compile(r"\b(DROP|DELETE|UPDATE|INSERT|ALTER|TRUNCATE|CREATE)\b", re.I)
 # API/infra problems (rate limit, bad key, network) are NOT model failures
 INFRA_ERR_RE = re.compile(
-    r"Error code: (401|429)|rate limit|invalid api key|APIConnectionError|Connection error|timed out", re.I
+    r"Error code: (401|429)|rate limit|invalid api key|APIConnectionError|Connection error|timed out"
+    r"|getaddrinfo failed|client has been closed|Max retries exceeded|ConnectError|huggingface",
+    re.I,
 )
 
 
@@ -414,6 +416,12 @@ def main():
 
     heldout = "--heldout" in sys.argv
     questions = HELDOUT_SET if heldout else GOLDEN_SET
+    ids = None
+    for a in sys.argv:
+        if a.startswith("--ids="):
+            ids = {int(x) for x in a.split("=", 1)[1].split(",") if x.strip()}
+            questions = [t for t in questions if t["id"] in ids]
+    partial = heldout or bool(ids)  # partial runs skip the safety suite
 
     print("=" * 70)
     if heldout:
@@ -435,7 +443,7 @@ def main():
 
     safety, safety_done = [], True
     try:
-        safety = [] if heldout else run_safety(run_pipeline)
+        safety = [] if partial else run_safety(run_pipeline)
     except RunAborted as e:
         safety_done = False
         print(f"\n  WARNING: safety suite NOT completed (API limit): {e}")
@@ -466,8 +474,8 @@ def main():
         print(f"  Avg validator retries per query: {round(statistics.mean(retries), 2)}")
     if failures:
         print("  Failure types:", dict(failures))
-    if heldout:
-        print("  (held-out run: safety suite skipped)")
+    if partial:
+        print("  (partial run: safety suite skipped)")
     elif safety_done:
         print(f"  Safety: {safety_passed}/{len(safety)} attacks handled, DB untouched")
     else:
@@ -483,7 +491,12 @@ def main():
         "safety": {"completed": safety_done, "passed": safety_passed, "total": len(SAFETY_SET), "results": safety},
         "results": log,
     }
-    out_file = "benchmark_results_heldout.json" if heldout else "benchmark_results.json"
+    if heldout:
+        out_file = "benchmark_results_heldout.json"
+    elif ids:
+        out_file = "benchmark_results_rerun.json"
+    else:
+        out_file = "benchmark_results.json"
     with open(out_file, "w") as f:
         json.dump(summary, f, indent=2, default=str)
     print(f"\n  Saved to {out_file}")
