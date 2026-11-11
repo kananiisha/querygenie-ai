@@ -21,3 +21,6 @@ qdrant_storage/
 
 
 querygenie_dev.db
+benchmark_results_rerun.json
+
+Dataset/
