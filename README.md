@@ -146,7 +146,7 @@ querygenie-ai/
 ## 🔒 Security
 
 - **SELECT-only validation:** `backend/agents/validator.py` blocks DROP, DELETE, UPDATE, ALTER and multi-statement queries before execution. Checked by the safety suite in `benchmark.py`.
-- **JWT authentication** on protected endpoints (`backend/auth.py`).
+- **JWT authentication** (`backend/auth.py`): login issues signed tokens. By default, requests without a token run as a shared demo user so the public demo works without sign-up. Set `ALLOW_ANONYMOUS=false` to require a token. In production, the app refuses to start without a real `SECRET_KEY`.
 <!-- VERIFY each line below in the code before keeping it. Delete any you cannot point to a file for:
 - Read-only database connection (which file/setting enforces it?)
 - Audit log of every query (which file writes it?)
