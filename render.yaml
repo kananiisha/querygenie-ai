@@ -2,18 +2,17 @@ services:
   - type: web
     name: querygenie-ai-backend
     runtime: python
-    buildCommand: pip install -r backend/requirements.txt
+    plan: free
+    buildCommand: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r backend/requirements.txt && python seed_sqlite.py && python -m backend.schema_indexer.index_schema
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: SECRET_KEY
-        sync: false
-      - key: QDRANT_URL
-        sync: false
-      - key: QDRANT_API_KEY
-        sync: false
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: DATABASE_URL
+        value: sqlite:///./querygenie_dev.db
+      - key: HF_HOME
+        value: /opt/render/project/src/.hf_cache
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
