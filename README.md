@@ -1,4 +1,8 @@
-<!-- Re-add your CI / Python / FastAPI badge lines here. After deploying on Render, add a "Live demo" link and a demo GIF under the tagline. -->
+![CI](https://github.com/kananiisha/querygenie-ai/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+
+<!-- After deploying on Render, add a "Live demo" link and a demo GIF under the tagline. -->
 
 # 🔍 QueryGenie AI: Multi-Agent NL-to-SQL
 
