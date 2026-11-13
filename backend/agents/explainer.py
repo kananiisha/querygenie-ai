@@ -12,18 +12,21 @@ from groq import Groq
 load_dotenv()
 
 MODEL = "openai/gpt-oss-120b"
+PREVIEW_ROWS = 10  # how many result rows are shown to the LLM
 
 SYSTEM_PROMPT = """You are a helpful data analyst assistant.
 You will be given:
 1. A business question asked by a non-technical user
 2. The SQL query that was run to answer it
-3. The raw results from the database
+3. The raw results from the database, plus the TOTAL number of rows returned
 
 Your job is to write a clear, concise plain-English answer (2-4 sentences max).
 - Use simple language, no SQL jargon
 - Include specific numbers/names from the results
 - If results are empty, say so clearly
 - Never make up data not present in the results
+- The total row count is given to you. When you say how many rows or records there are, use that total.
+- Sometimes only a preview of the rows is shown. Never count the preview rows yourself and never infer a count or an ID range from them; if you mention the preview, say it is a sample.
 - Prefer concise natural statements like 'There are 350 customers from USA.'
 """
 
@@ -83,14 +86,23 @@ def explain_result(question: str, sql: str, results: list[dict]) -> str:
     except Exception:
         return fallback_explain_result(question, sql, results)
 
-    if not results:
-        results_text = "The query returned no results."
+    total_rows = len(results)
+    preview = results[:PREVIEW_ROWS]
+    results_text = json.dumps(preview, indent=2, default=str)
+
+    if total_rows > len(preview):
+        count_note = (
+            f"Total rows returned: {total_rows}. "
+            f"Only the first {len(preview)} rows are shown below as a sample; "
+            f"use the total of {total_rows} when you mention how many there are."
+        )
     else:
-        results_text = json.dumps(results[:10], indent=2, default=str)
+        count_note = f"Total rows returned: {total_rows}. All rows are shown below."
 
     user_prompt = (
         f"Question: {question}\n\n"
         f"SQL query that was run:\n{sql}\n\n"
+        f"{count_note}\n\n"
         f"Database results:\n{results_text}\n\n"
         f"Write a plain-English answer to the question based on these results."
     )

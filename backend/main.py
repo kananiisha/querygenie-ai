@@ -1,14 +1,25 @@
 """
 FastAPI application — main entry point.
 """
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
+import os
+import time
+from collections import defaultdict, deque
+
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from backend.database import get_db, init_db, QueryLog
-from backend.auth import hash_password, verify_password, create_access_token, decode_token
+from backend.auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    decode_token,
+    IS_PRODUCTION,
+)
 
 app = FastAPI(title="QueryGenie AI")
 
@@ -20,6 +31,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Public-demo protections (only active when deployed, e.g. on Render) ──────
+# Local development behaves exactly as before.
+UPLOADS_ENABLED = os.environ.get("ALLOW_UPLOADS", "false" if IS_PRODUCTION else "true").strip().lower() == "true"
+RATE_LIMIT_PER_HOUR = int(os.environ.get("RATE_LIMIT_PER_HOUR", "30" if IS_PRODUCTION else "0"))  # 0 = off
+MAX_UPLOAD_MB = 500
+
+_hits: dict[str, deque] = defaultdict(deque)
+
+
+def rate_limit(request: Request):
+    """Simple in-memory per-IP limit so one visitor cannot drain the free Groq quota."""
+    if RATE_LIMIT_PER_HOUR <= 0:
+        return
+    ip = (
+        request.headers.get("cf-connecting-ip")
+        or (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    now = time.time()
+    hits = _hits[ip]
+    while hits and now - hits[0] > 3600:
+        hits.popleft()
+    if len(_hits) > 1000:  # drop idle entries
+        for key in [k for k, v in _hits.items() if not v and k != ip]:
+            del _hits[key]
+    if len(hits) >= RATE_LIMIT_PER_HOUR:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Demo limit reached ({RATE_LIMIT_PER_HOUR} requests per hour per visitor). Please try again later.",
+        )
+    hits.append(now)
+
+
+def _public_error(e: Exception) -> str:
+    """Never leak internal error text (file paths, API account details) on a public deployment."""
+    if IS_PRODUCTION:
+        print(f"Request failed: {e}")  # still visible in the server logs
+        return "The question could not be processed right now. Please try again in a minute."
+    return str(e)
+
 
 @app.on_event("startup")
 def startup():
@@ -30,6 +81,11 @@ def startup():
         print("Schema indexed successfully on startup.")
     except Exception as e:
         print(f"Schema indexing failed on startup: {e}")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
@@ -89,6 +145,11 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), user: dict = Depends(decode_token)):
+    if not UPLOADS_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail="File uploads are disabled in the public demo. Run the project locally to upload your own data.",
+        )
     try:
         import os as _os
         allowed = [".csv", ".xlsx", ".xls"]
@@ -98,8 +159,8 @@ async def upload_file(file: UploadFile = File(...), user: dict = Depends(decode_
 
         file_bytes = await file.read()
         size_mb = len(file_bytes) / (1024 * 1024)
-        if size_mb > 500:
-            raise HTTPException(status_code=400, detail=f"File too large ({size_mb:.0f}MB). Max 500MB.")
+        if size_mb > MAX_UPLOAD_MB:
+            raise HTTPException(status_code=400, detail=f"File too large ({size_mb:.0f}MB). Max {MAX_UPLOAD_MB}MB.")
 
         from backend.file_ingestion import ingest_file, index_uploaded_schema
         metadata = ingest_file(file_bytes, file.filename)
@@ -120,7 +181,7 @@ async def upload_file(file: UploadFile = File(...), user: dict = Depends(decode_
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=_public_error(e))
 
 
 @app.get("/tables")
@@ -135,7 +196,7 @@ class QueryRequest(BaseModel):
     question: str
     table_hint: str | None = None
 
-@app.post("/recommendations")
+@app.post("/recommendations", dependencies=[Depends(rate_limit)])
 def get_recommendations(req: QueryRequest, user: dict = Depends(decode_token)):
     try:
         import os, json
@@ -185,7 +246,7 @@ def get_recommendations(req: QueryRequest, user: dict = Depends(decode_token)):
 
 
 # ─── Query ────────────────────────────────────────────────────────────────────
-@app.post("/query")
+@app.post("/query", dependencies=[Depends(rate_limit)])
 def query(req: QueryRequest, db: Session = Depends(get_db), user: dict = Depends(decode_token)):
     try:
         from backend.agents.pipeline import run_pipeline
@@ -215,10 +276,14 @@ def query(req: QueryRequest, db: Session = Depends(get_db), user: dict = Depends
         log = QueryLog(question=req.question, generated_sql=None, status="failed")
         db.add(log)
         db.commit()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=_public_error(e))
 
 @app.get("/query/history")
 def query_history(db: Session = Depends(get_db), user: dict = Depends(decode_token)):
+    # Every anonymous visitor is the same "demo-user" and the log has no owner column,
+    # so on a public deployment the history would show other visitors' questions.
+    if IS_PRODUCTION:
+        raise HTTPException(status_code=403, detail="Query history is disabled in the public demo.")
     logs = db.query(QueryLog).order_by(QueryLog.created_at.desc()).limit(20).all()
     return [
         {
